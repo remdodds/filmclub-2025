@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Config: read-only for authenticated users, write through Cloud Functions only
+    match /config/{document=**} {
+      allow read: if true;  // Anyone can read config for login
+      allow write: if false;  // Only through Cloud Functions
+    }
+
+    // Films: read for all, write through Cloud Functions only
+    match /films/{filmId} {
+      allow read: if true;
+      allow write: if false;  // Only through Cloud Functions
+    }
+
+    // Voting rounds: read-only
+    match /votingRounds/{roundId} {
+      allow read: if true;
+      allow write: if false;  // Only through Cloud Functions
+    }
+
+    // Votes: managed by Cloud Functions only (private)
+    match /votes/{voteId} {
+      allow read: if false;  // Private
+      allow write: if false;  // Only through Cloud Functions
+    }
+
+    // Sessions: managed by Cloud Functions only
+    match /sessions/{sessionId} {
+      allow read: if false;
+      allow write: if false;  // Only through Cloud Functions
+    }
+  }
+}

@@ -1,0 +1,365 @@
+# 🎬 Film Club
+
+A collaborative film selection app using democratic voting. Members nominate films, vote using a 0-3 scale, and the Condorcet algorithm picks the winner.
+
+---
+
+## Overview
+
+Film Club is a SvelteKit + Firebase app that makes choosing your next group film fair and fun:
+
+- **Nominate** - Anyone can add films to the pool
+- **Vote** - Score each film 0-3 (I hate it → I love it)
+- **Win** - Condorcet voting finds the film that would beat all others head-to-head
+- **Watch** - Track your history and never repeat
+
+---
+
+## Features
+
+### Core Functionality
+✅ **Democratic Voting** - Condorcet method ensures the fairest winner
+✅ **Anonymous Voting** - Visitor IDs track votes without accounts
+✅ **Duplicate Prevention** - Fuzzy matching prevents re-nominations
+✅ **Watch History** - Track what you've watched chronologically
+✅ **Simple Auth** - One shared password for the whole club
+
+### Technical Highlights
+✅ **92 Comprehensive Tests** - TDD approach with pure business logic
+✅ **Type-Safe** - Full TypeScript coverage
+✅ **Serverless** - Cloud Functions scale automatically
+✅ **Mobile-First** - DaisyUI responsive design
+
+---
+
+## Tech Stack
+
+**Frontend**
+- SvelteKit 5 - Reactive UI framework
+- Tailwind CSS 4 + DaisyUI 5 - Styling
+- TypeScript 5 - Type safety
+
+**Backend**
+- Firebase Cloud Functions - Serverless API
+- Firestore - NoSQL database
+- Firebase Hosting - Static hosting
+
+**Testing**
+- Jest - Unit & integration tests
+- 92 tests covering all business logic
+
+---
+
+## Quick Start
+
+### Prerequisites
+```bash
+node >= 18
+npm >= 8
+firebase-cli >= 13
+```
+
+### Installation
+
+```bash
+# Clone and install
+git clone <your-repo>
+cd filmclub
+npm install
+
+# Install backend dependencies
+cd functions
+npm install
+cd ..
+```
+
+### Local Development
+
+```bash
+# Start Firebase emulators (backend + database)
+firebase emulators:start
+
+# In another terminal, start frontend dev server
+npm run dev
+
+# Access:
+# - App: http://localhost:5173
+# - Functions: http://localhost:5001
+# - Firestore: http://localhost:8080
+# - Emulator UI: http://localhost:4000
+```
+
+### Run Tests
+
+```bash
+cd functions
+npm test                  # All tests
+npm test:watch           # Watch mode
+npm test:coverage        # Coverage report
+
+# Run specific tests
+npm test auth.logic.test.ts
+npm test condorcet.test.ts
+npm test films.logic.test.ts
+```
+
+### Build
+
+```bash
+# Build frontend
+npm run build
+
+# Build backend
+cd functions
+npm run build
+```
+
+---
+
+## Project Structure
+
+```
+filmclub/
+├── src/                          # SvelteKit frontend
+│   ├── lib/
+│   │   └── stores.ts             # Auth store
+│   └── routes/
+│       ├── +page.svelte          # Login page
+│       ├── +layout.svelte        # App layout
+│       ├── films/                # Film management
+│       ├── vote/                 # Voting interface
+│       └── history/              # Watch history
+│
+├── functions/                    # Cloud Functions backend
+│   ├── src/
+│   │   ├── utils/
+│   │   │   ├── db.ts             # Firestore connection
+│   │   │   ├── auth.ts           # Session management
+│   │   │   └── auth.logic.ts     # Auth business logic (27 tests)
+│   │   ├── films/
+│   │   │   └── films.logic.ts    # Film logic (41 tests)
+│   │   ├── voting/
+│   │   │   ├── types.ts          # Type definitions
+│   │   │   ├── condorcet.ts      # Voting algorithm (12 tests)
+│   │   │   └── index.ts          # Algorithm registry (9 tests)
+│   │   ├── api/                  # Express endpoints (TODO)
+│   │   ├── scheduled/            # Cron jobs (TODO)
+│   │   └── index.ts              # Main entry point (TODO)
+│   ├── package.json
+│   └── jest.config.js
+│
+├── static/                       # Static assets
+├── firebase.json                 # Firebase config
+├── firestore.rules               # Security rules
+├── firestore.indexes.json        # Database indexes
+│
+└── Documentation/
+    ├── README.md                 # This file
+    ├── REQUIREMENTS.md           # Project requirements
+    ├── TECHNICAL_PLAN.md         # Implementation guide
+    ├── PROJECT_PROGRESS.md       # Progress tracker
+    └── claude.md                 # Development notes
+```
+
+---
+
+## How It Works
+
+### 1. Setup Your Club
+```bash
+curl -X POST https://your-app.web.app/api/config/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clubName": "Friday Film Club",
+    "password": "your-secure-password",
+    "timezone": "Europe/London",
+    "votingSchedule": {
+      "openDay": 5,      # Friday
+      "openTime": "18:00",
+      "closeDay": 6,     # Saturday
+      "closeTime": "20:00"
+    }
+  }'
+```
+
+### 2. Nominate Films
+Members add films throughout the week. Duplicates are automatically detected.
+
+### 3. Vote
+On Friday at 6pm, voting opens. Everyone rates each film 0-3:
+- 0 = "I hate this idea"
+- 1 = "Meh, I guess"
+- 2 = "Sounds good!"
+- 3 = "Yes! Let's watch this!"
+
+### 4. Winner Selected
+Saturday at 8pm, voting closes. The Condorcet algorithm picks the winner:
+- Compares every film head-to-head
+- The film that would beat all others wins
+- If no clear winner (cycle), highest total score wins
+
+### 5. Watch & Track
+Film is marked as watched, saved to history, removed from nominations.
+
+---
+
+## Voting Algorithm
+
+We use the **Condorcet method** because it's the fairest:
+
+### Example
+3 voters, 3 films (A, B, C):
+
+```
+Voter 1: A(3), B(2), C(1)
+Voter 2: B(3), A(2), C(1)
+Voter 3: C(3), B(2), A(1)
+```
+
+**Head-to-head comparisons:**
+- A vs B: B wins (2 voters prefer B)
+- B vs C: B wins (2 voters prefer B)
+- A vs C: Tie (1 each)
+
+**Result:** B is the Condorcet winner (beats all others)
+
+### Handling Cycles
+If no clear winner exists (Rock beats Scissors, Scissors beats Paper, Paper beats Rock), we use total score as a tiebreaker.
+
+---
+
+## Development Notes
+
+### Architecture Philosophy
+We use **clean separation** between business logic and integration:
+
+- **Business Logic** (pure functions) - Fully tested with unit tests
+- **Integration Layer** (Firebase/Express) - Tested via emulators
+
+This means:
+✅ Tests track your app's functionality, not library behavior
+✅ Easy to maintain and refactor
+✅ High confidence in correctness
+
+### Test Coverage
+- 27 tests - Auth business logic
+- 21 tests - Voting algorithm
+- 41 tests - Film nomination logic
+- 3 tests - Integration layer
+
+See `PROJECT_PROGRESS.md` for detailed test documentation.
+
+---
+
+## Deployment
+
+### First Time Setup
+
+```bash
+# Login to Firebase
+firebase login --no-localhost
+
+# Select/create project
+firebase use --add
+
+# Deploy everything
+npm run build
+firebase deploy
+```
+
+### Subsequent Deploys
+
+```bash
+# Deploy everything
+npm run build && firebase deploy
+
+# Or deploy individually
+firebase deploy --only functions
+firebase deploy --only hosting
+firebase deploy --only firestore:rules
+```
+
+### Set Up Scheduled Jobs
+
+```bash
+# Open voting (Friday 6pm)
+gcloud scheduler jobs create pubsub open-voting \
+  --schedule="0 18 * * 5" \
+  --topic=firebase-schedule-openVoting \
+  --location=us-central1
+
+# Close voting (Saturday 8pm)
+gcloud scheduler jobs create pubsub close-voting \
+  --schedule="0 20 * * 6" \
+  --topic=firebase-schedule-closeVoting \
+  --location=us-central1
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+None needed! Configuration is stored in Firestore via the setup endpoint.
+
+### Firebase Setup
+
+1. Create a Firebase project at https://console.firebase.google.com
+2. Enable Firestore Database
+3. Enable Cloud Functions
+4. Enable Hosting
+5. Run `firebase init` and select the services above
+
+---
+
+## Troubleshooting
+
+### Functions won't deploy
+- Check Node version in `functions/package.json` matches your local version
+- Run `cd functions && npm install` to ensure dependencies are current
+
+### Tests failing
+- Check you're in the `functions` directory
+- Run `npm install` to ensure test dependencies are installed
+- Check Jest version compatibility with TypeScript
+
+### Emulators won't start
+- Check ports 5001, 8080, 4000, 5173 aren't in use
+- Try `firebase emulators:start --project=demo-test`
+
+---
+
+## Contributing
+
+This is a personal/club project, but feel free to fork and adapt for your needs!
+
+### Development Workflow
+
+1. Write tests first (TDD approach)
+2. Implement business logic (pure functions)
+3. Create integration layer (thin wrappers)
+4. Test with Firebase emulators
+5. Deploy when ready
+
+---
+
+## License
+
+MIT - Use this for your film club!
+
+---
+
+## Credits
+
+Built with ❤️ for film lovers who hate arguing about what to watch.
+
+**Tech Stack:**
+- SvelteKit by the Svelte team
+- Firebase by Google
+- Tailwind CSS + DaisyUI
+- Condorcet voting method by Marquis de Condorcet (1785)
+
+---
+
+**Questions?** Check `TECHNICAL_PLAN.md` for implementation details or `PROJECT_PROGRESS.md` for current status.
