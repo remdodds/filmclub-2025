@@ -365,8 +365,14 @@ All API endpoints implemented as thin Express wrappers around tested business lo
 - ✅ `GET /config` - Get club configuration
 - ✅ `POST /config/setup` - Initialize club
 - ✅ `POST /auth/login` - Authentication
-- ✅ `GET /films` - List films (with auth)
-- ⚠️ `POST /films` - Add film (needs debugging)
+- ✅ `POST /auth/logout` - Logout
+- ✅ `GET /auth/check` - Check session
+- ✅ `GET /films` - List films
+- ✅ `POST /films` - Add film (**FIXED**)
+- ✅ `DELETE /films/:id` - Delete film
+- ✅ `GET /films/history` - Watch history
+
+**All API endpoints fully functional!**
 
 ### Initial Configuration ✅
 - ✅ Club initialized with:
@@ -375,12 +381,33 @@ All API endpoints implemented as thin Express wrappers around tested business lo
   - Timezone: Europe/London
   - Voting Schedule: Friday 18:00 - Saturday 20:00
 
-### Known Issues
-- ⚠️ Film creation endpoint returns internal server error
-  - Needs investigation via Firebase console logs
-  - May be Firestore permissions issue
+### Sample Data Added ✅
+- ✅ "The Godfather" - Successfully added and tested
+- ✅ "Pulp Fiction" - Successfully added and tested
+- ✅ Duplicate detection verified (fuzzy matching works)
 
-**Time Spent**: ~4 hours
+### Bug Fixes ✅
+- ✅ **Film creation error fixed** (2025-12-17)
+  - Issue: `visitorId` was undefined when creating films
+  - Cause: Reading from `req.body` instead of auth middleware's `req.visitorId`
+  - Solution: Updated `addFilm` to read from correct location
+  - Deployed: Automatic via GitHub Actions
+
+### Viewing Logs 📋
+**Firebase CLI** (easiest in Termux):
+```bash
+firebase functions:log              # All logs
+firebase functions:log --only api   # Specific function
+```
+
+**Google Cloud Console** (most detailed):
+- Logs Query: https://console.cloud.google.com/logs/query?project=filmclubapi
+- Function Logs: https://console.cloud.google.com/functions/details/us-central1/api?project=filmclubapi&tab=logs
+
+**Firebase Console**:
+- Functions: https://console.firebase.google.com/project/filmclubapi/functions
+
+**Time Spent**: ~5 hours
 
 ---
 

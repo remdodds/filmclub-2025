@@ -2,9 +2,28 @@
 
 A collaborative film selection app using democratic voting. Members nominate films, vote using a 0-3 scale, and the Condorcet algorithm picks the winner.
 
-**🚀 Status**: Live and deployed on Firebase!
+**🚀 Status**: Backend 100% Complete - Frontend Ready to Build
 **📦 GitHub**: https://github.com/remdodds/filmclub-2025
 **🌐 API**: https://us-central1-filmclubapi.cloudfunctions.net/api
+**🔐 Password**: filmclub2025
+
+---
+
+## Current Status
+
+### ✅ Completed (Backend)
+- **API Deployed**: All 12 endpoints live on Firebase
+- **Tests Passing**: 92 unit tests, 100% core logic coverage
+- **Authentication**: Login/logout/session management working
+- **Film Management**: Add/list/delete films with duplicate detection
+- **Sample Data**: "The Godfather" and "Pulp Fiction" already in system
+- **CI/CD**: GitHub Actions auto-deploys on push to main
+
+### 🚧 Next Steps (Frontend)
+- Login page with password authentication
+- Films list with add/delete functionality
+- App layout with navigation
+- See `FRONTEND_GUIDE.md` for detailed guide
 
 ---
 
