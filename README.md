@@ -2,6 +2,10 @@
 
 A collaborative film selection app using democratic voting. Members nominate films, vote using a 0-3 scale, and the Condorcet algorithm picks the winner.
 
+**🚀 Status**: Live and deployed on Firebase!
+**📦 GitHub**: https://github.com/remdodds/filmclub-2025
+**🌐 API**: https://us-central1-filmclubapi.cloudfunctions.net/api
+
 ---
 
 ## Overview
@@ -167,20 +171,26 @@ filmclub/
 
 ### 1. Setup Your Club
 ```bash
-curl -X POST https://your-app.web.app/api/config/setup \
+curl -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/config/setup \
   -H "Content-Type: application/json" \
   -d '{
     "clubName": "Friday Film Club",
     "password": "your-secure-password",
     "timezone": "Europe/London",
     "votingSchedule": {
-      "openDay": 5,      # Friday
+      "openDay": 5,
       "openTime": "18:00",
-      "closeDay": 6,     # Saturday
+      "closeDay": 6,
       "closeTime": "20:00"
     }
   }'
 ```
+
+**Note**: Club is already configured with:
+- Name: "Film Club"
+- Password: filmclub2025
+- Timezone: Europe/London
+- Voting: Friday 18:00 - Saturday 20:00
 
 ### 2. Nominate Films
 Members add films throughout the week. Duplicates are automatically detected.
@@ -253,47 +263,50 @@ See `PROJECT_PROGRESS.md` for detailed test documentation.
 
 ## Deployment
 
-### First Time Setup
+### Automated Deployment (GitHub Actions)
+
+This project uses GitHub Actions for continuous deployment. Every push to `main` automatically deploys to Firebase.
+
+**Setup** (already configured):
+1. ✅ Firebase service account key stored in GitHub secrets
+2. ✅ Workflow file: `.github/workflows/deploy.yml`
+3. ✅ Auto-deploys functions, Firestore rules, and indexes
+
+**To Deploy**:
+```bash
+git add .
+git commit -m "Your changes"
+git push
+```
+
+GitHub Actions will automatically:
+- Build TypeScript functions
+- Deploy Cloud Functions
+- Deploy Firestore rules and indexes
+
+**Monitor Deployments**:
+- GitHub Actions: https://github.com/remdodds/filmclub-2025/actions
+- Firebase Console: https://console.firebase.google.com/project/filmclubapi
+
+### Manual Deployment (Optional)
+
+If deploying from a computer (not Termux):
 
 ```bash
 # Login to Firebase
-firebase login --no-localhost
-
-# Select/create project
-firebase use --add
+firebase login
 
 # Deploy everything
-npm run build
-firebase deploy
+firebase deploy --only functions,firestore:rules,firestore:indexes
 ```
 
-### Subsequent Deploys
+### Scheduled Functions
 
-```bash
-# Deploy everything
-npm run build && firebase deploy
+Scheduled functions are automatically deployed and configured:
+- ✅ `openVoting` - Opens voting every Friday at 18:00 Europe/London
+- ✅ `closeVoting` - Closes voting every Saturday at 20:00 Europe/London
 
-# Or deploy individually
-firebase deploy --only functions
-firebase deploy --only hosting
-firebase deploy --only firestore:rules
-```
-
-### Set Up Scheduled Jobs
-
-```bash
-# Open voting (Friday 6pm)
-gcloud scheduler jobs create pubsub open-voting \
-  --schedule="0 18 * * 5" \
-  --topic=firebase-schedule-openVoting \
-  --location=us-central1
-
-# Close voting (Saturday 8pm)
-gcloud scheduler jobs create pubsub close-voting \
-  --schedule="0 20 * * 6" \
-  --topic=firebase-schedule-closeVoting \
-  --location=us-central1
-```
+Cloud Scheduler automatically manages these based on the cron expressions in `functions/src/index.ts`.
 
 ---
 
