@@ -56,9 +56,10 @@ export async function listFilms(req: Request, res: Response): Promise<void> {
  *
  * Request body:
  * {
- *   title: string,
- *   visitorId: string
+ *   title: string
  * }
+ *
+ * Note: visitorId comes from auth middleware (req.visitorId)
  *
  * Response:
  * {
@@ -67,7 +68,8 @@ export async function listFilms(req: Request, res: Response): Promise<void> {
  */
 export async function addFilm(req: Request, res: Response): Promise<void> {
   try {
-    const { title, visitorId } = req.body;
+    const { title } = req.body;
+    const visitorId = (req as any).visitorId; // From auth middleware
 
     // Validate title
     const validation = validateFilmTitle(title);
