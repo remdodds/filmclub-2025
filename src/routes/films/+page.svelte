@@ -4,12 +4,14 @@
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
   import type { Film } from '$lib/types';
+  import LoadingButton from '$lib/components/LoadingButton.svelte';
 
   let films: Film[] = [];
   let newTitle = '';
   let loading = false;
   let error = '';
   let success = '';
+  let deletingId: string | null = null;
 
   onMount(async () => {
     auth.init();
@@ -58,11 +60,14 @@
     if (!confirm('Are you sure you want to delete this film?')) return;
 
     error = '';
+    deletingId = id;
     try {
       await api.deleteFilm(id);
       await loadFilms();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete film';
+    } finally {
+      deletingId = null;
     }
   }
 </script>
@@ -84,9 +89,9 @@
           disabled={loading}
           required
         />
-        <button class="btn btn-primary join-item shadow-lg shadow-primary/50" type="submit" disabled={loading}>
+        <LoadingButton class="btn-primary join-item shadow-lg shadow-primary/50" type="submit" loading={loading}>
           {loading ? 'Adding...' : 'Add Film'}
-        </button>
+        </LoadingButton>
       </div>
     </form>
 
@@ -153,12 +158,13 @@
           <div class="card shadow-lg border border-primary/20 hover:border-primary/50 transition-all" style="background-color: #2A2A2A;">
             <div class="card-body p-4 flex-row justify-between items-center">
               <h2 class="card-title text-lg">{film.title}</h2>
-              <button
-                class="btn btn-sm btn-error btn-outline hover:shadow-lg hover:shadow-error/50 transition-all"
-                on:click={() => handleDelete(film.id)}
+              <LoadingButton
+                class="btn-sm btn-error btn-outline hover:shadow-lg hover:shadow-error/50 transition-all"
+                loading={deletingId === film.id}
+                onclick={() => handleDelete(film.id)}
               >
                 Delete
-              </button>
+              </LoadingButton>
             </div>
           </div>
         {/each}

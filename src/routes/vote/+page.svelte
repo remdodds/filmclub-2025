@@ -4,6 +4,7 @@
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
   import type { VotingRound } from '$lib/types';
+  import LoadingButton from '$lib/components/LoadingButton.svelte';
 
   let votingRound: VotingRound | null = null;
   let votes: Record<string, number> = {};
@@ -201,13 +202,13 @@
           {/each}
         </div>
 
-        <button
-          class="btn btn-primary btn-lg w-full mt-6 shadow-xl shadow-primary/50 hover:shadow-2xl hover:shadow-primary/70 transition-all"
-          on:click={handleSubmit}
-          disabled={loading}
+        <LoadingButton
+          class="btn-primary btn-lg w-full mt-6 shadow-xl shadow-primary/50 hover:shadow-2xl hover:shadow-primary/70 transition-all"
+          onclick={handleSubmit}
+          loading={loading}
         >
           {loading ? 'Submitting...' : 'Submit Votes'}
-        </button>
+        </LoadingButton>
       </div>
     {/if}
   </div>

@@ -3,6 +3,7 @@
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
   import { onMount } from 'svelte';
+  import LoadingButton from '$lib/components/LoadingButton.svelte';
 
   let password = '';
   let error = '';
@@ -72,9 +73,9 @@
           </div>
         {/if}
         <div class="form-control mt-6">
-          <button class="btn btn-primary" type="submit" disabled={loading}>
+          <LoadingButton class="btn-primary" type="submit" loading={loading}>
             {loading ? 'Logging in...' : 'Login'}
-          </button>
+          </LoadingButton>
         </div>
       </form>
     </div>

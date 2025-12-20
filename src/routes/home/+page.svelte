@@ -1,9 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores';
+  import { api } from '$lib/api';
   import { onMount } from 'svelte';
+  import LoadingButton from '$lib/components/LoadingButton.svelte';
 
   let isLoggedIn = false;
+  let logoutLoading = false;
 
   onMount(async () => {
     auth.init();
@@ -17,6 +20,16 @@
 
   function navigateTo(path: string) {
     goto(path);
+  }
+
+  async function handleLogout() {
+    logoutLoading = true;
+    try {
+      await api.logout();
+      auth.logout();
+    } finally {
+      logoutLoading = false;
+    }
   }
 </script>
 
@@ -78,9 +91,10 @@
         </div>
       </button>
 
-      <button
-        class="btn btn-outline btn-lg w-full justify-start gap-4 hover:btn-error transition-all"
-        on:click={() => auth.logout()}
+      <LoadingButton
+        class="btn-outline btn-lg w-full justify-start gap-4 hover:btn-error transition-all"
+        loading={logoutLoading}
+        onclick={handleLogout}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -97,10 +111,10 @@
           />
         </svg>
         <div class="text-left">
-          <div class="font-bold">Logout</div>
+          <div class="font-bold">{logoutLoading ? 'Logging out...' : 'Logout'}</div>
           <div class="text-sm opacity-70">Sign out of Film Club</div>
         </div>
-      </button>
+      </LoadingButton>
     </div>
   </div>
 </div>
