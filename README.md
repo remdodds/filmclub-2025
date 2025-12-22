@@ -421,6 +421,22 @@ curl -X GET https://us-central1-filmclubapi.cloudfunctions.net/api/votes/current
   -H "Authorization: Bearer $TOKEN"
 ```
 
+**Add Test Votes** (optional, for testing with multiple voters):
+```bash
+./add-test-votes.sh
+```
+
+**Close Voting and Calculate Winner:**
+```bash
+./close-voting-production.sh
+```
+
+**Get Latest Results:**
+```bash
+curl -X GET https://us-central1-filmclubapi.cloudfunctions.net/api/votes/results/latest \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ### Reverting to Original Schedule
 
 After testing, revert to the production schedule (Friday-Saturday only):

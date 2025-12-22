@@ -40,12 +40,24 @@ Wait 2-3 minutes for GitHub Actions to auto-deploy.
 ```
 **What this does:** Creates an open voting round with your nominated films
 
-### Step 4: Test in Browser
+### Step 4: Add Test Votes (Optional)
+```bash
+./add-test-votes.sh
+```
+**What this does:** Adds votes from 5 test voters with varied patterns to test the Condorcet algorithm
+
+### Step 5: Test in Browser
 1. Visit: https://filmclub-2025-21c5e.web.app
 2. Login with: `filmclub2025`
 3. Navigate to voting page
 4. Vote on films (0-3 scale)
 5. Submit and verify
+
+### Step 6: Close Voting and Calculate Winner
+```bash
+./close-voting-production.sh
+```
+**What this does:** Closes the voting round, runs Condorcet algorithm, marks winner as watched, stores results
 
 ## Quick Commands
 
@@ -71,6 +83,12 @@ curl -s -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/test/open
 ### Close Voting
 ```bash
 curl -s -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/test/close-voting \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+### Get Latest Results
+```bash
+curl -s -X GET https://us-central1-filmclubapi.cloudfunctions.net/api/votes/results/latest \
   -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
 ```
 
@@ -118,17 +136,41 @@ curl -X PUT https://us-central1-filmclubapi.cloudfunctions.net/api/config/voting
   }' | python3 -m json.tool
 ```
 
+## Complete Testing Workflow
+
+### Quick Test (Full Cycle)
+```bash
+# 1. Update config to allow voting anytime
+./update-voting-schedule.sh
+
+# 2. Open a voting round
+./open-voting-production.sh
+
+# 3. Add test votes from 5 fake voters
+./add-test-votes.sh
+
+# 4. Close voting and calculate winner
+./close-voting-production.sh
+
+# 5. Open a new round to test again (optional)
+./open-voting-production.sh
+```
+
 ## Testing Checklist
 
 - [ ] Deploy updated functions to production
 - [ ] Run `./update-voting-schedule.sh` to enable 7-day voting
 - [ ] Run `./open-voting-production.sh` to create voting round
-- [ ] Test login at https://filmclub-2025-21c5e.web.app
+- [ ] Test login at https://filmclubapi.web.app
 - [ ] Navigate to voting page and see films
 - [ ] Vote on all films (0-3 scale)
 - [ ] Submit votes
 - [ ] Verify votes saved via API
-- [ ] Test closing voting round
+- [ ] Optionally run `./add-test-votes.sh` for more test votes
+- [ ] Run `./close-voting-production.sh` to calculate winner
+- [ ] Verify winner is marked as watched
+- [ ] Verify results are stored correctly
+- [ ] Test opening a new round after closing
 - [ ] Revert to production schedule when done
 
 ## Notes
