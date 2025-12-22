@@ -35,11 +35,25 @@
   async function loadVotingRound() {
     try {
       const data = await api.getCurrentVoting();
-      votingRound = data.votingRound;
 
-      if (votingRound?.yourVotes) {
-        votes = { ...votingRound.yourVotes };
+      // Map API response to frontend format
+      if (data.votingRound) {
+        votingRound = {
+          ...data.votingRound,
+          films: data.votingRound.candidates || data.votingRound.films || []
+        };
+      } else {
+        votingRound = null;
+      }
+
+      if (data.userBallot?.votes) {
+        // Convert ballot votes array to Record format
+        votes = {};
+        data.userBallot.votes.forEach((vote: any) => {
+          votes[vote.filmId] = vote.score;
+        });
       } else if (votingRound?.films) {
+        // Initialize all films with 0 votes
         votes = {};
         votingRound.films.forEach(film => {
           votes[film.id] = 0;

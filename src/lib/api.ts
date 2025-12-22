@@ -83,13 +83,25 @@ export const api = {
   },
 
   async submitVotes(votes: Record<string, number>) {
+    // Convert votes object to array format expected by API
+    const votesArray = Object.entries(votes).map(([filmId, score]) => ({
+      filmId,
+      score
+    }));
+
+    // Get visitorId from localStorage (set during login)
+    const visitorId = typeof window !== 'undefined' ? localStorage.getItem('visitorId') : null;
+
     const res = await fetch(`${API_BASE}/votes`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${getToken()}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ votes })
+      body: JSON.stringify({
+        visitorId,
+        votes: votesArray
+      })
     });
     return handleResponse(res);
   },
