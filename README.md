@@ -345,6 +345,106 @@ None needed! Configuration is stored in Firestore via the setup endpoint.
 
 ---
 
+## Testing Voting Functionality
+
+The app includes test endpoints and scripts for testing voting functionality in production (useful for Termux where emulators don't work).
+
+### Quick Start - Test Voting
+
+1. **Deploy the functions** (if you haven't already):
+   ```bash
+   git add .
+   git commit -m "Update voting configuration"
+   git push
+   # Wait 2-3 minutes for GitHub Actions to deploy
+   # Or deploy manually: firebase deploy --only functions
+   ```
+
+2. **Configure voting schedule** (allow voting any day):
+   ```bash
+   ./update-voting-schedule.sh
+   ```
+   This updates production to allow voting 7 days a week for easy testing.
+
+3. **Open a voting round**:
+   ```bash
+   ./open-voting-production.sh
+   ```
+
+4. **Test in browser**:
+   - Visit: https://filmclub-2025-21c5e.web.app
+   - Login with password: `filmclub2025`
+   - Navigate to voting page
+   - Vote on films (0-3 scale)
+   - Submit and verify votes saved
+
+### Test Endpoints (Production)
+
+These endpoints are available for manual testing:
+
+**Update Voting Schedule:**
+```bash
+# Login first
+TOKEN=$(curl -s -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"password":"filmclub2025"}' | grep -o '"sessionToken":"[^"]*' | cut -d'"' -f4)
+
+# Update schedule to allow voting any day
+curl -X PUT https://us-central1-filmclubapi.cloudfunctions.net/api/config/voting-schedule \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "votingSchedule": {
+      "openDay": 0,
+      "openTime": "00:00",
+      "closeDay": 6,
+      "closeTime": "23:59"
+    }
+  }'
+```
+
+**Manually Open Voting:**
+```bash
+curl -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/test/open-voting \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Manually Close Voting:**
+```bash
+curl -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/test/close-voting \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Check Voting Status:**
+```bash
+curl -X GET https://us-central1-filmclubapi.cloudfunctions.net/api/votes/current \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Reverting to Original Schedule
+
+After testing, revert to the production schedule (Friday-Saturday only):
+
+```bash
+TOKEN=$(curl -s -X POST https://us-central1-filmclubapi.cloudfunctions.net/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"password":"filmclub2025"}' | grep -o '"sessionToken":"[^"]*' | cut -d'"' -f4)
+
+curl -X PUT https://us-central1-filmclubapi.cloudfunctions.net/api/config/voting-schedule \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "votingSchedule": {
+      "openDay": 5,
+      "openTime": "18:00",
+      "closeDay": 6,
+      "closeTime": "20:00"
+    }
+  }'
+```
+
+---
+
 ## Troubleshooting
 
 ### Functions won't deploy

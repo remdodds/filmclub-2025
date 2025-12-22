@@ -86,6 +86,29 @@ app.get('/votes/results/latest', authMiddleware, votesApi.getLatestResults);
 
 // Config setup is semi-protected - can only be run once
 app.post('/config/setup', configApi.setupClub);
+app.put('/config/voting-schedule', authMiddleware, configApi.updateVotingSchedule);
+
+// Test/Development endpoints - manually trigger scheduled functions
+// Only use these for local testing with emulators
+app.post('/test/open-voting', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    await openVotingRound();
+    res.status(200).json({ success: true, message: 'Voting round opened' });
+  } catch (error: any) {
+    console.error('Test open voting error:', error);
+    res.status(500).json({ error: error.message || 'Failed to open voting round' });
+  }
+});
+
+app.post('/test/close-voting', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    await closeVotingRound();
+    res.status(200).json({ success: true, message: 'Voting round closed' });
+  } catch (error: any) {
+    console.error('Test close voting error:', error);
+    res.status(500).json({ error: error.message || 'Failed to close voting round' });
+  }
+});
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
