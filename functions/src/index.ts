@@ -14,6 +14,7 @@ import * as authApi from './api/auth';
 import * as filmsApi from './api/films';
 import * as votesApi from './api/votes';
 import * as configApi from './api/config';
+import * as historyApi from './api/history';
 
 // Import scheduled functions
 import { openVotingRound } from './scheduled/openVoting';
@@ -83,6 +84,8 @@ app.get('/films/history', authMiddleware, filmsApi.getHistory);
 app.get('/votes/current', authMiddleware, votesApi.getCurrentVoting);
 app.post('/votes', authMiddleware, votesApi.submitVote);
 app.get('/votes/results/latest', authMiddleware, votesApi.getLatestResults);
+
+app.get('/history', authMiddleware, historyApi.getHistory);
 
 // Config setup is semi-protected - can only be run once
 app.post('/config/setup', configApi.setupClub);

@@ -113,6 +113,17 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Voting History
+  async getVotingHistory(limit?: number) {
+    const url = limit
+      ? `${API_BASE}/history?limit=${limit}`
+      : `${API_BASE}/history`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse(res);
+  },
+
   // Config
   async getConfig() {
     const res = await fetch(`${API_BASE}/config`);

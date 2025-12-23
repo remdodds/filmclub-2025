@@ -91,6 +91,30 @@
         </div>
       </button>
 
+      <button
+        class="btn btn-info btn-lg w-full justify-start gap-4 shadow-lg shadow-info/50 hover:shadow-xl hover:shadow-info/70 transition-all"
+        on:click={() => navigateTo('/history')}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
+        </svg>
+        <div class="text-left">
+          <div class="font-bold">Voting History</div>
+          <div class="text-sm opacity-70">View past results</div>
+        </div>
+      </button>
+
       <LoadingButton
         class="btn-outline btn-lg w-full justify-start gap-4 hover:btn-error transition-all"
         loading={logoutLoading}

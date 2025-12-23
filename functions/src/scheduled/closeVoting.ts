@@ -9,6 +9,7 @@ import { db } from '../utils/db';
 import { getDefaultAlgorithm } from '../voting/index';
 import { Ballot, FilmCandidate, VotingResults } from '../voting/types';
 import { markFilmAsWatched, Film } from '../films/films.logic';
+import { archiveVotingRound } from '../history/votingHistory';
 
 /**
  * Closes the current voting round and determines the winner
@@ -22,6 +23,7 @@ import { markFilmAsWatched, Film } from '../films/films.logic';
  * 6. Removes winner from nominations
  * 7. Stores results
  * 8. Closes the voting round
+ * 9. Archives the voting round to history collection
  */
 export async function closeVotingRound(): Promise<void> {
   try {
@@ -130,6 +132,15 @@ export async function closeVotingRound(): Promise<void> {
     });
 
     console.log('Voting round closed successfully');
+
+    // Archive voting round to history collection
+    try {
+      await archiveVotingRound(roundId);
+      console.log('Voting round archived to history');
+    } catch (archiveError) {
+      console.error('Error archiving voting round:', archiveError);
+      // Don't throw - we don't want to fail the close if archival fails
+    }
   } catch (error) {
     console.error('Error closing voting round:', error);
     throw error;

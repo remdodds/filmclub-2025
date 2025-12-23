@@ -60,3 +60,40 @@ export interface AuthState {
   visitorId: string | null;
   isLoggedIn: boolean;
 }
+
+export interface PairwiseComparison {
+  filmA: string;
+  filmB: string;
+  filmAWins: number;
+  filmBWins: number;
+  ties: number;
+}
+
+export interface RankingWithFilmInfo {
+  filmId: string;
+  title: string;
+  nominatedBy?: string;
+  rank: number;
+  totalScore: number;
+  averageScore: number;
+  pairwiseWins: number;
+  pairwiseLosses: number;
+}
+
+export interface VotingHistoryRecord {
+  roundId: string;
+  openedAt: Date | string;
+  closedAt: Date | string;
+  totalBallots: number;
+  candidateCount: number;
+  winner: {
+    filmId: string;
+    title: string;
+    nominatedBy: string;
+  } | null;
+  condorcetWinner: boolean;
+  algorithm: string;
+  rankings: RankingWithFilmInfo[];
+  pairwiseComparisons: PairwiseComparison[];
+  archivedAt: Date | string;
+}
