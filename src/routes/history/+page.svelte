@@ -1,3 +1,17 @@
+<!--
+  Voting History Page
+
+  Displays a chronological list of completed voting rounds with detailed results.
+  Each round shows:
+  - Winner and whether it was a Condorcet winner (beats all others head-to-head)
+  - Vote count and number of films
+  - Top 3 films in a visual grid with medal emojis
+  - Expandable full rankings table with scores and head-to-head records
+  - Algorithm information
+
+  The page uses a collapsible UI pattern - users can expand individual rounds
+  to see detailed rankings, scores, and pairwise comparison statistics.
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -23,6 +37,10 @@
     return unsubscribe;
   });
 
+  /**
+   * Loads voting history from the API
+   * Fetches all completed voting rounds ordered by most recent first
+   */
   async function loadHistory() {
     loading = true;
     error = '';
@@ -36,6 +54,11 @@
     }
   }
 
+  /**
+   * Formats a date for display in British format (e.g., "24 Dec 2025")
+   * @param date - Date object or ISO string to format
+   * @returns Formatted date string
+   */
   function formatDate(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleDateString('en-GB', {
@@ -45,10 +68,24 @@
     });
   }
 
+  /**
+   * Toggles the expanded/collapsed state of a voting round
+   * Only one round can be expanded at a time
+   * @param roundId - ID of the round to expand/collapse
+   */
   function toggleExpand(roundId: string) {
     expandedRound = expandedRound === roundId ? null : roundId;
   }
 
+  /**
+   * Returns a color class based on score performance
+   * - Green (text-success): 80%+ of max score
+   * - Yellow (text-warning): 60-79% of max score
+   * - Red (text-error): Below 60% of max score
+   * @param score - The actual score achieved
+   * @param maxScore - The maximum possible score
+   * @returns Tailwind CSS color class
+   */
   function getScoreColor(score: number, maxScore: number): string {
     const percentage = (score / maxScore) * 100;
     if (percentage >= 80) return 'text-success';
@@ -56,6 +93,11 @@
     return 'text-error';
   }
 
+  /**
+   * Returns a medal emoji for top 3 rankings
+   * @param rank - The ranking position (1, 2, 3, etc.)
+   * @returns Medal emoji for positions 1-3, empty string otherwise
+   */
   function getMedalEmoji(rank: number): string {
     if (rank === 1) return '🥇';
     if (rank === 2) return '🥈';

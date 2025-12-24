@@ -114,6 +114,11 @@ export const api = {
   },
 
   // Voting History
+  /**
+   * Retrieves voting history for past rounds
+   * @param limit - Optional maximum number of records to return (default: 50, max: 100)
+   * @returns Promise resolving to { history: VotingHistoryRecord[] }
+   */
   async getVotingHistory(limit?: number) {
     const url = limit
       ? `${API_BASE}/history?limit=${limit}`
