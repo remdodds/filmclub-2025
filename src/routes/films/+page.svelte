@@ -4,14 +4,20 @@
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
   import type { Film } from '$lib/types';
-  import LoadingButton from '$lib/components/LoadingButton.svelte';
+  import { fly, scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import Icon from '@iconify/svelte';
+  import FilmGrain from '$lib/components/FilmGrain.svelte';
+  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
+  import CinemaCard from '$lib/components/CinemaCard.svelte';
+  import MarqueeButton from '$lib/components/MarqueeButton.svelte';
+  import { toast } from 'svelte-sonner';
 
   let films: Film[] = [];
   let newTitle = '';
   let loading = false;
-  let error = '';
-  let success = '';
   let deletingId: string | null = null;
+  let mounted = false;
 
   onMount(async () => {
     auth.init();
@@ -22,6 +28,7 @@
     });
 
     await loadFilms();
+    mounted = true;
 
     return unsubscribe;
   });
@@ -31,7 +38,7 @@
       const data = await api.getFilms();
       films = data.films;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load films';
+      toast.error(err instanceof Error ? err.message : 'Failed to load films');
     }
   }
 
@@ -39,136 +46,189 @@
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    error = '';
-    success = '';
     loading = true;
 
     try {
       await api.addFilm(newTitle.trim());
-      success = 'Film added successfully!';
+      toast.success('Film added to nominations!');
       newTitle = '';
       await loadFilms();
-      setTimeout(() => { success = ''; }, 3000);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to add film';
+      toast.error(err instanceof Error ? err.message : 'Failed to add film');
     } finally {
       loading = false;
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this film?')) return;
+  async function handleDelete(id: string, title: string) {
+    if (!confirm(`Remove "${title}" from nominations?`)) return;
 
-    error = '';
     deletingId = id;
     try {
       await api.deleteFilm(id);
+      toast.success('Film removed');
       await loadFilms();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to delete film';
+      toast.error(err instanceof Error ? err.message : 'Failed to delete film');
     } finally {
       deletingId = null;
     }
   }
+
+  function navigateBack() {
+    goto('/home');
+  }
 </script>
 
-<div class="min-h-screen pb-20" style="background-color: #0A0A0A;">
-  <div class="container mx-auto p-4 max-w-2xl">
-    <h1 class="text-4xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-      🎬 Nominated Films
-    </h1>
+<FilmGrain />
+<SpotlightEffect intensity="low" />
 
-    <form class="mb-6" on:submit={handleAddFilm}>
-      <div class="join w-full shadow-lg">
-        <input
-          type="text"
-          placeholder="Enter film title..."
-          class="input input-bordered join-item flex-1 border-primary/30 focus:border-primary"
-          style="background-color: #2A2A2A;"
-          bind:value={newTitle}
-          disabled={loading}
-          required
-        />
-        <LoadingButton class="btn-primary join-item shadow-lg shadow-primary/50" type="submit" loading={loading}>
-          {loading ? 'Adding...' : 'Add Film'}
-        </LoadingButton>
-      </div>
-    </form>
-
-    {#if error}
-      <div class="alert alert-error mb-4">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="stroke-current shrink-0 h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
+<div class="films-page min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-5xl">
+    {#if mounted}
+      <!-- Header -->
+      <div class="flex items-center gap-4 mb-8" in:fly={{ y: -20, duration: 600, easing: cubicOut }}>
+        <button
+          on:click={navigateBack}
+          class="btn btn-circle btn-outline hover:btn-accent transition-all"
+          aria-label="Back to home"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>{error}</span>
+          <Icon icon="mdi:arrow-left" class="w-6 h-6" />
+        </button>
+        <div class="flex-1">
+          <h1 class="text-headline gold-shimmer">
+            Nominations
+          </h1>
+          <p class="text-small opacity-70 mt-1">
+            {films.length} film{films.length === 1 ? '' : 's'} nominated
+          </p>
+        </div>
       </div>
-    {/if}
 
-    {#if success}
-      <div class="alert alert-success mb-4">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="stroke-current shrink-0 h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>{success}</span>
-      </div>
-    {/if}
-
-    {#if films.length === 0}
-      <div class="text-center py-12">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-24 w-24 mx-auto mb-4 opacity-30"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
-          />
-        </svg>
-        <p class="text-xl opacity-50">No films nominated yet</p>
-        <p class="opacity-40 mt-2">Add your first film above!</p>
-      </div>
-    {:else}
-      <div class="space-y-3">
-        {#each films as film}
-          <div class="card shadow-lg border border-primary/20 hover:border-primary/50 transition-all" style="background-color: #2A2A2A;">
-            <div class="card-body p-4 flex-row justify-between items-center">
-              <h2 class="card-title text-lg">{film.title}</h2>
-              <LoadingButton
-                class="btn-sm btn-error btn-outline hover:shadow-lg hover:shadow-error/50 transition-all"
-                loading={deletingId === film.id}
-                onclick={() => handleDelete(film.id)}
+      <!-- Add Film Section -->
+      <div in:fly={{ y: 20, duration: 600, delay: 100, easing: cubicOut }}>
+        <CinemaCard variant="velvet" className="mb-8">
+          <form class="p-6" on:submit={handleAddFilm}>
+            <label for="film-title" class="text-subtitle text-sm uppercase tracking-wider text-gold mb-3 block">
+              Add Film
+            </label>
+            <div class="flex gap-3">
+              <input
+                id="film-title"
+                type="text"
+                placeholder="Enter film title..."
+                class="input input-bordered flex-1"
+                style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px;"
+                bind:value={newTitle}
+                disabled={loading}
+                required
+              />
+              <MarqueeButton
+                variant="accent"
+                size="md"
+                type="submit"
+                {loading}
               >
-                Delete
-              </LoadingButton>
+                <Icon icon="mdi:ticket-confirmation" class="w-5 h-5" />
+                Nominate
+              </MarqueeButton>
             </div>
-          </div>
-        {/each}
+          </form>
+        </CinemaCard>
       </div>
+
+      <!-- Films Grid -->
+      {#if films.length === 0}
+        <div
+          class="text-center py-16"
+          in:fly={{ y: 20, duration: 600, delay: 200, easing: cubicOut }}
+        >
+          <Icon
+            icon="mdi:movie-open-outline"
+            class="w-24 h-24 mx-auto mb-6 opacity-20"
+          />
+          <h2 class="text-title opacity-50 mb-2">Coming Soon</h2>
+          <p class="opacity-40">No films nominated yet. Add your first film above!</p>
+        </div>
+      {:else}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {#each films as film, i (film.id)}
+            <div
+              in:scale={{ duration: 400, delay: i * 50, start: 0.9, easing: cubicOut }}
+              out:scale={{ duration: 300, start: 1, easing: cubicOut }}
+            >
+              <CinemaCard variant="poster" spotlight={true} className="film-card">
+                <div class="p-6 relative">
+                  <div class="flex items-start gap-3">
+                    <Icon
+                      icon="mdi:filmstrip-box"
+                      class="w-8 h-8 flex-shrink-0 mt-1"
+                      style="color: var(--accent-gold);"
+                    />
+                    <div class="flex-1 min-w-0">
+                      <h3 class="text-lg font-bold leading-tight break-words">
+                        {film.title}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <button
+                    on:click={() => handleDelete(film.id, film.title)}
+                    disabled={deletingId === film.id}
+                    class="btn btn-sm btn-circle btn-outline btn-error absolute top-3 right-3 opacity-0 delete-btn"
+                    class:loading={deletingId === film.id}
+                    aria-label="Delete {film.title}"
+                  >
+                    {#if deletingId === film.id}
+                      <span class="loading loading-spinner loading-sm"></span>
+                    {:else}
+                      <Icon icon="mdi:close" class="w-4 h-4" />
+                    {/if}
+                  </button>
+                </div>
+              </CinemaCard>
+            </div>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
+
+<style>
+  .films-page {
+    background: radial-gradient(ellipse at top, rgba(26, 26, 26, 0.6) 0%, var(--bg-theater) 50%);
+    position: relative;
+  }
+
+  .text-gold {
+    color: var(--accent-gold);
+  }
+
+  .film-card {
+    position: relative;
+    min-height: 100px;
+  }
+
+  .film-card:hover .delete-btn {
+    opacity: 1;
+  }
+
+  .delete-btn {
+    transition: opacity var(--timing-normal);
+  }
+
+  :global(.input:focus) {
+    outline: 2px solid var(--accent-gold) !important;
+    outline-offset: 2px;
+    border-color: var(--accent-gold) !important;
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15) !important;
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 768px) {
+    .film-card .delete-btn {
+      opacity: 1;
+    }
+  }
+</style>

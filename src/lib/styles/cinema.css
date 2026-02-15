@@ -1,0 +1,452 @@
+/* ============================================
+   CINEMATIC DESIGN SYSTEM
+   Film Club - Design Tokens & Animations
+   ============================================ */
+
+:root {
+  /* ========== BACKGROUNDS ========== */
+  --bg-theater: #0A0A0A;
+  --bg-stage: #1A1A1A;
+  --bg-curtain: #2A1215;
+  --bg-velvet: #4A1725;
+  --bg-card: #2A2A2A;
+
+  /* ========== ACCENT COLORS ========== */
+  --accent-gold: #D4AF37;
+  --accent-brass: #B5A642;
+  --accent-red: #DC2626;
+  --accent-burgundy: #6B0F1A;
+  --accent-deep-red: #8B0000;
+
+  /* ========== SPOTLIGHT ========== */
+  --spotlight-white: #FFF8DC;
+  --spotlight-warm: #FFE4B5;
+
+  /* ========== FILM GRAIN ========== */
+  --film-grain-opacity: 0.03;
+
+  /* ========== GRADIENTS ========== */
+  --gradient-marquee: linear-gradient(90deg, #D4AF37 0%, #FFE4B5 50%, #D4AF37 100%);
+  --gradient-velvet: linear-gradient(135deg, #4A1725 0%, #6B0F1A 100%);
+  --gradient-spotlight: radial-gradient(circle at center, rgba(255, 248, 220, 0.1) 0%, transparent 70%);
+  --gradient-gold-shine: linear-gradient(45deg, #B5A642 0%, #D4AF37 50%, #FFE4B5 75%, #D4AF37 100%);
+  --gradient-red-to-gold: linear-gradient(135deg, #DC2626 0%, #D4AF37 100%);
+
+  /* ========== SHADOWS ========== */
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-dramatic: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-gold-glow: 0 0 20px rgba(212, 175, 55, 0.3);
+  --shadow-red-glow: 0 0 20px rgba(220, 38, 38, 0.3);
+
+  /* ========== TIMING ========== */
+  --timing-instant: 100ms;
+  --timing-quick: 200ms;
+  --timing-normal: 300ms;
+  --timing-slow: 500ms;
+  --timing-dramatic: 800ms;
+}
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+
+/* Film Grain Animation */
+@keyframes filmGrain {
+  0%, 100% {
+    transform: translate(0, 0);
+    opacity: var(--film-grain-opacity);
+  }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+}
+
+/* Curtain Opening */
+@keyframes curtainOpen {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes curtainOpenRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Curtain Closing */
+@keyframes curtainClose {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes curtainCloseRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Film Reel Rotation */
+@keyframes filmReel {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Marquee Lights */
+@keyframes marqueeLights {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes marqueeChase {
+  0% {
+    box-shadow:
+      0 0 10px rgba(212, 175, 55, 0.8),
+      0 0 20px rgba(212, 175, 55, 0.4);
+  }
+  25% {
+    box-shadow:
+      0 0 15px rgba(212, 175, 55, 1),
+      0 0 30px rgba(212, 175, 55, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(212, 175, 55, 0.8),
+      0 0 20px rgba(212, 175, 55, 0.4);
+  }
+  75% {
+    box-shadow:
+      0 0 5px rgba(212, 175, 55, 0.6),
+      0 0 10px rgba(212, 175, 55, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 10px rgba(212, 175, 55, 0.8),
+      0 0 20px rgba(212, 175, 55, 0.4);
+  }
+}
+
+/* Gold Shimmer */
+@keyframes goldShimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Spotlight Pulse */
+@keyframes spotlightPulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Sparkle Animation */
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+/* Star Fill Animation */
+@keyframes starFill {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Fade In Up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade In Down */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale In */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Glow Pulse */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--accent-gold);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--accent-gold), 0 0 40px var(--accent-gold);
+  }
+}
+
+/* Film Burn (Delete Effect) */
+@keyframes filmBurn {
+  0% {
+    opacity: 1;
+    filter: brightness(1) contrast(1);
+  }
+  30% {
+    opacity: 0.9;
+    filter: brightness(1.2) contrast(1.1);
+  }
+  60% {
+    opacity: 0.5;
+    filter: brightness(1.5) contrast(0.8) sepia(0.3);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(2) contrast(0.5) sepia(1);
+    transform: scale(0.95);
+  }
+}
+
+/* Ticket Tear */
+@keyframes ticketTear {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+  100% {
+    transform: translateX(100px) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+/* Countdown Number Flip */
+@keyframes numberFlip {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+/* Rays Rotation */
+@keyframes rotateRays {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Velvet Texture */
+.velvet-texture {
+  background: var(--gradient-velvet);
+  position: relative;
+}
+
+.velvet-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.03) 0px,
+    transparent 1px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.03) 3px
+  );
+  pointer-events: none;
+}
+
+/* Spotlight Effect */
+.spotlight {
+  position: relative;
+}
+
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-spotlight);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--timing-slow);
+}
+
+.spotlight:hover::before {
+  opacity: 1;
+}
+
+/* Gold Shimmer Text */
+.gold-shimmer {
+  background: var(--gradient-gold-shine);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldShimmer 3s linear infinite;
+}
+
+/* Marquee Glow */
+.marquee-glow {
+  animation: marqueeChase 2s ease-in-out infinite;
+}
+
+/* Film Strip Border */
+.film-strip-border {
+  border-top: 8px solid var(--bg-theater);
+  border-bottom: 8px solid var(--bg-theater);
+  position: relative;
+}
+
+.film-strip-border::before,
+.film-strip-border::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--bg-theater) 0px,
+    var(--bg-theater) 10px,
+    var(--accent-gold) 10px,
+    var(--accent-gold) 15px
+  );
+}
+
+.film-strip-border::before {
+  top: -8px;
+}
+
+.film-strip-border::after {
+  bottom: -8px;
+}
+
+/* Perforated Edge (Ticket Stub) */
+.perforated-edge {
+  position: relative;
+}
+
+.perforated-edge::after {
+  content: '';
+  position: absolute;
+  right: -10px;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 5px,
+    var(--bg-theater) 5px,
+    var(--bg-theater) 10px
+  );
+}
+
+/* Cinema Card Lift */
+.cinema-lift {
+  transition: transform var(--timing-normal), box-shadow var(--timing-normal);
+}
+
+.cinema-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-dramatic), var(--shadow-gold-glow);
+}
+
+/* Stagger Animation Classes */
+.stagger-item {
+  animation: fadeInUp var(--timing-slow) both;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 100ms; }
+.stagger-item:nth-child(3) { animation-delay: 200ms; }
+.stagger-item:nth-child(4) { animation-delay: 300ms; }
+.stagger-item:nth-child(5) { animation-delay: 400ms; }
+.stagger-item:nth-child(6) { animation-delay: 500ms; }
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .gold-shimmer {
+    animation: none;
+    background: var(--accent-gold);
+    -webkit-text-fill-color: unset;
+    color: var(--accent-gold);
+  }
+}

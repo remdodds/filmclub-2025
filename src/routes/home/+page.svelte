@@ -3,10 +3,16 @@
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
   import { onMount } from 'svelte';
-  import LoadingButton from '$lib/components/LoadingButton.svelte';
+  import { fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import Icon from '@iconify/svelte';
+  import FilmGrain from '$lib/components/FilmGrain.svelte';
+  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
+  import CinemaCard from '$lib/components/CinemaCard.svelte';
 
   let isLoggedIn = false;
   let logoutLoading = false;
+  let mounted = false;
 
   onMount(async () => {
     auth.init();
@@ -16,6 +22,7 @@
         goto('/');
       }
     });
+    mounted = true;
   });
 
   function navigateTo(path: string) {
@@ -33,112 +40,168 @@
   }
 </script>
 
-<div class="min-h-screen p-4" style="background-color: #0A0A0A;">
-  <div class="max-w-md mx-auto pt-8">
-    <div class="text-center mb-10">
-      <h1 class="text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-3">
-        🎬 Film Club
-      </h1>
-      <p class="text-xl text-base-content/70">What would you like to do?</p>
-    </div>
+<FilmGrain />
+<SpotlightEffect intensity="low" />
 
-    <div class="space-y-4">
-      <button
-        class="btn btn-primary btn-lg w-full justify-start gap-4 shadow-lg shadow-primary/50 hover:shadow-xl hover:shadow-primary/70 transition-all"
-        on:click={() => navigateTo('/films')}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
-          />
-        </svg>
-        <div class="text-left">
-          <div class="font-bold">Nominated Films</div>
-          <div class="text-sm opacity-70">View and add films</div>
+<div class="cinema-home min-h-screen">
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    {#if mounted}
+      <!-- Header -->
+      <div class="text-center mb-12" in:fly={{ y: -30, duration: 800, easing: cubicOut }}>
+        <div class="text-small mb-3 tracking-widest uppercase opacity-70">
+          Now Showing
         </div>
-      </button>
+        <h1 class="text-headline gold-shimmer mb-4">
+          Film Club
+        </h1>
+        <div class="text-subtitle opacity-80">
+          What would you like to do?
+        </div>
+      </div>
 
-      <button
-        class="btn btn-accent btn-lg w-full justify-start gap-4 shadow-lg shadow-accent/50 hover:shadow-xl hover:shadow-accent/70 transition-all text-base-100"
-        on:click={() => navigateTo('/vote')}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      <!-- Navigation Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Nominated Films Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 100ms;"
+          in:fly={{ y: 30, duration: 600, delay: 200, easing: cubicOut }}
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-          />
-        </svg>
-        <div class="text-left">
-          <div class="font-bold">Vote</div>
-          <div class="text-sm opacity-70">Rate nominated films</div>
+          <CinemaCard
+            variant="poster"
+            spotlight={true}
+            clickable={true}
+            on:click={() => navigateTo('/films')}
+          >
+            <div class="p-8 text-center">
+              <Icon
+                icon="mdi:filmstrip"
+                class="w-16 h-16 mx-auto mb-4"
+                style="color: var(--accent-gold);"
+              />
+              <h2 class="text-title mb-2">Nominated Films</h2>
+              <p class="text-small opacity-70">View and add films to the roster</p>
+            </div>
+          </CinemaCard>
         </div>
-      </button>
 
-      <button
-        class="btn btn-info btn-lg w-full justify-start gap-4 shadow-lg shadow-info/50 hover:shadow-xl hover:shadow-info/70 transition-all"
-        on:click={() => navigateTo('/history')}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+        <!-- Vote Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 200ms;"
+          in:fly={{ y: 30, duration: 600, delay: 300, easing: cubicOut }}
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-          />
-        </svg>
-        <div class="text-left">
-          <div class="font-bold">Voting History</div>
-          <div class="text-sm opacity-70">View past results</div>
+          <CinemaCard
+            variant="poster"
+            spotlight={true}
+            clickable={true}
+            on:click={() => navigateTo('/vote')}
+          >
+            <div class="p-8 text-center">
+              <Icon
+                icon="mdi:star-box-multiple"
+                class="w-16 h-16 mx-auto mb-4"
+                style="color: var(--accent-gold);"
+              />
+              <h2 class="text-title mb-2">Cast Your Vote</h2>
+              <p class="text-small opacity-70">Rate nominated films</p>
+            </div>
+          </CinemaCard>
         </div>
-      </button>
 
-      <LoadingButton
-        class="btn-outline btn-lg w-full justify-start gap-4 hover:btn-error transition-all"
-        loading={logoutLoading}
-        onclick={handleLogout}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+        <!-- Voting History Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 300ms;"
+          in:fly={{ y: 30, duration: 600, delay: 400, easing: cubicOut }}
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-          />
-        </svg>
-        <div class="text-left">
-          <div class="font-bold">{logoutLoading ? 'Logging out...' : 'Logout'}</div>
-          <div class="text-sm opacity-70">Sign out of Film Club</div>
+          <CinemaCard
+            variant="poster"
+            spotlight={true}
+            clickable={true}
+            on:click={() => navigateTo('/history')}
+          >
+            <div class="p-8 text-center">
+              <Icon
+                icon="mdi:trophy-variant"
+                class="w-16 h-16 mx-auto mb-4"
+                style="color: var(--accent-gold);"
+              />
+              <h2 class="text-title mb-2">Past Premieres</h2>
+              <p class="text-small opacity-70">View voting history and winners</p>
+            </div>
+          </CinemaCard>
         </div>
-      </LoadingButton>
-    </div>
+
+        <!-- Exit/Logout Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 400ms;"
+          in:fly={{ y: 30, duration: 600, delay: 500, easing: cubicOut }}
+        >
+          <CinemaCard
+            variant="standard"
+            clickable={true}
+            on:click={handleLogout}
+            className="exit-card"
+          >
+            <div class="p-8 text-center">
+              <div class="exit-sign mb-4">
+                <Icon
+                  icon="mdi:exit-run"
+                  class="w-12 h-12 mx-auto"
+                />
+              </div>
+              <h2 class="text-title mb-2" style="color: var(--accent-red);">
+                {logoutLoading ? 'Exiting...' : 'Exit'}
+              </h2>
+              <p class="text-small opacity-70">Sign out of Film Club</p>
+            </div>
+          </CinemaCard>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
+
+<style>
+  .cinema-home {
+    background: radial-gradient(ellipse at top, rgba(26, 26, 26, 0.6) 0%, var(--bg-theater) 50%);
+    position: relative;
+  }
+
+  .exit-card {
+    border: 1px solid rgba(220, 38, 38, 0.3);
+  }
+
+  .exit-sign {
+    position: relative;
+    color: var(--accent-red);
+    filter: drop-shadow(0 0 12px rgba(220, 38, 38, 0.6));
+  }
+
+  .exit-card:hover .exit-sign {
+    animation: exitPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes exitPulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 12px rgba(220, 38, 38, 0.6));
+    }
+    50% {
+      filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.9));
+    }
+  }
+
+  /* Grid responsive adjustments */
+  @media (max-width: 768px) {
+    :global(.cinema-home .grid) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Stagger animation */
+  .stagger-item {
+    animation: fadeInUp var(--timing-slow) both;
+  }
+</style>
