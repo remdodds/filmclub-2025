@@ -6,7 +6,6 @@
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import FilmGrain from '$lib/components/FilmGrain.svelte';
-  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
 
@@ -38,7 +37,6 @@
 </script>
 
 <FilmGrain />
-<SpotlightEffect intensity="medium" />
 
 <div class="cinema-entrance">
   <div class="hero min-h-screen relative">

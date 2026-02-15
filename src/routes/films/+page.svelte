@@ -8,7 +8,6 @@
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
   import FilmGrain from '$lib/components/FilmGrain.svelte';
-  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
   import { toast } from 'svelte-sonner';
@@ -81,7 +80,6 @@
 </script>
 
 <FilmGrain />
-<SpotlightEffect intensity="low" />
 
 <div class="films-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-5xl">
