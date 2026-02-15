@@ -20,7 +20,6 @@
     }
   ],
   "hosting": {
-    "site": "filmclub-2025-21c5e",
     "public": "build",
     "ignore": [
       "firebase.json",
