@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "./lib/styles/cinema.css";
+
+/* Cinematic Typography Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:wght@700;900&display=swap');
 
 /* Base styles */
 html {
@@ -266,4 +270,156 @@ body {
 
 .border-accent\/30 {
   border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* ============================================
+   CINEMATIC TYPOGRAPHY SYSTEM
+   ============================================ */
+
+/* Display - Hero titles (Movie marquee style) */
+.text-display {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3rem, 8vw, 6rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* Headline - Section titles (Film poster style) */
+.text-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+/* Subheadline - Subsection titles */
+.text-subheadline {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Title - Card titles */
+.text-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Subtitle - Supporting text */
+.text-subtitle {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
+/* Body - Main content */
+.text-body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Small - Fine print */
+.text-small {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ============================================
+   TEXT EFFECTS
+   ============================================ */
+
+/* Gold foil text effect */
+.text-gold-foil {
+  background: linear-gradient(135deg, #B5A642 0%, #D4AF37 25%, #FFE4B5 50%, #D4AF37 75%, #B5A642 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(212, 175, 55, 0.3));
+}
+
+/* Neon glow text */
+.text-neon {
+  text-shadow:
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 30px currentColor;
+}
+
+/* Embossed text */
+.text-embossed {
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1),
+    0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   ENHANCED COMPONENT STYLES
+   ============================================ */
+
+/* Enhanced focus states with gold glow */
+.input:focus,
+.btn:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.2);
+}
+
+/* Cinematic button enhancements */
+.btn-primary {
+  background: linear-gradient(135deg, var(--cinema-red) 0%, var(--accent-deep-red) 100%);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.btn-primary:hover::before {
+  transform: translateX(100%);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent-brass) 0%, var(--accent-gold) 100%);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.btn-accent:hover::before {
+  transform: translateX(100%);
+}
+
+/* Enhanced card shadows */
+.card {
+  box-shadow: var(--shadow-medium);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-dramatic), var(--shadow-gold-glow);
 }
