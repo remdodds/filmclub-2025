@@ -75,6 +75,7 @@ app.get('/config', configApi.getConfig);
 
 // Admin routes (no auth required - visible to everyone)
 app.get('/admin/votes', adminApi.getAdminVotes);
+app.post('/admin/open-round', adminApi.openRound);
 app.post('/admin/select-winner', adminApi.selectWinner);
 
 // Protected routes (auth required)

@@ -37,6 +37,9 @@
   let data: AdminVotesData | null = null;
   let loading = true;
   let error = '';
+  let openingRound = false;
+  let openRoundResult = '';
+  let openRoundError = '';
   let selectingWinner = false;
   let winnerResult = '';
   let winnerError = '';
@@ -54,6 +57,21 @@
       error = err instanceof Error ? err.message : 'Failed to load votes';
     } finally {
       loading = false;
+    }
+  }
+
+  async function handleOpenRound() {
+    openingRound = true;
+    openRoundResult = '';
+    openRoundError = '';
+    try {
+      const result = await api.openRound();
+      openRoundResult = result.message || 'Voting round opened';
+      await loadVotes();
+    } catch (err) {
+      openRoundError = err instanceof Error ? err.message : 'Failed to open voting round';
+    } finally {
+      openingRound = false;
     }
   }
 
@@ -206,13 +224,40 @@
       </div>
 
       {#if !data.isOpen}
-        <!-- No active round - still allow triggering in case needed -->
-        <div class="card shadow-xl border border-warning/20 mb-6" style="background-color: #1A1A1A;">
+        <!-- No active round — offer to open one -->
+        <div class="card shadow-xl border border-primary/20 mb-6" style="background-color: #1A1A1A;">
           <div class="card-body">
-            <h2 class="card-title text-warning text-sm">No open voting round</h2>
-            <p class="text-base-content/50 text-sm">
-              There is no active voting round right now. Votes are only collected when a round is open.
+            <h2 class="card-title text-xl">Start a New Voting Round</h2>
+            <p class="text-base-content/50 text-sm mb-4">
+              No round is currently open. Opening a round lets members cast their votes against all nominated films.
             </p>
+            {#if openRoundResult}
+              <div class="alert alert-success mb-3">
+                <span>{openRoundResult}</span>
+              </div>
+            {/if}
+            {#if openRoundError}
+              <div class="alert alert-error mb-3">
+                <span>{openRoundError}</span>
+              </div>
+            {/if}
+            <div class="flex items-center gap-4">
+              <button
+                class="btn btn-success"
+                on:click={handleOpenRound}
+                disabled={openingRound}
+              >
+                {#if openingRound}
+                  <span class="loading loading-spinner loading-sm"></span>
+                  Opening round...
+                {:else}
+                  Open Voting Round
+                {/if}
+              </button>
+              <p class="text-xs text-base-content/50">
+                Uses the scheduled close time from club config
+              </p>
+            </div>
           </div>
         </div>
       {:else if data.candidates.length === 0}

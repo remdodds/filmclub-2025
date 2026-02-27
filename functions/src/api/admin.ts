@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { db } from '../utils/db';
 import { FilmCandidate, Ballot } from '../voting/types';
 import { closeVotingRound } from '../scheduled/closeVoting';
+import { openVotingRound } from '../scheduled/openVoting';
 
 /**
  * GET /admin/votes
@@ -88,6 +89,47 @@ export async function getAdminVotes(req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Get admin votes error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /admin/open-round
+ * Open a new voting round
+ *
+ * Response:
+ * { success: true, message: string }
+ */
+export async function openRound(req: Request, res: Response): Promise<void> {
+  try {
+    // Check if there's already an open round
+    const openRounds = await db
+      .collection('votingRounds')
+      .where('status', '==', 'open')
+      .limit(1)
+      .get();
+
+    if (!openRounds.empty) {
+      res.status(400).json({ error: 'A voting round is already open' });
+      return;
+    }
+
+    // Check there are films to vote on
+    const filmsSnapshot = await db
+      .collection('films')
+      .where('status', '==', 'nominated')
+      .limit(1)
+      .get();
+
+    if (filmsSnapshot.empty) {
+      res.status(400).json({ error: 'No nominated films to vote on' });
+      return;
+    }
+
+    await openVotingRound();
+    res.status(200).json({ success: true, message: 'Voting round opened' });
+  } catch (error: any) {
+    console.error('Open round error:', error);
+    res.status(500).json({ error: error.message || 'Failed to open voting round' });
   }
 }
 

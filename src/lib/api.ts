@@ -141,6 +141,13 @@ export const api = {
     return handleResponse(res);
   },
 
+  async openRound() {
+    const res = await fetch(`${API_BASE}/admin/open-round`, {
+      method: 'POST',
+    });
+    return handleResponse(res);
+  },
+
   async selectWinner() {
     const res = await fetch(`${API_BASE}/admin/select-winner`, {
       method: 'POST',
