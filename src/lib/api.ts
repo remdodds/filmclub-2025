@@ -133,5 +133,18 @@ export const api = {
   async getConfig() {
     const res = await fetch(`${API_BASE}/config`);
     return handleResponse(res);
+  },
+
+  // Admin
+  async getAdminVotes() {
+    const res = await fetch(`${API_BASE}/admin/votes`);
+    return handleResponse(res);
+  },
+
+  async selectWinner() {
+    const res = await fetch(`${API_BASE}/admin/select-winner`, {
+      method: 'POST',
+    });
+    return handleResponse(res);
   }
 };

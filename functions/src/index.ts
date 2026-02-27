@@ -15,6 +15,7 @@ import * as filmsApi from './api/films';
 import * as votesApi from './api/votes';
 import * as configApi from './api/config';
 import * as historyApi from './api/history';
+import * as adminApi from './api/admin';
 
 // Import scheduled functions
 import { openVotingRound } from './scheduled/openVoting';
@@ -71,6 +72,10 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction): 
 // Public routes (no auth required)
 app.post('/auth/login', authApi.login);
 app.get('/config', configApi.getConfig);
+
+// Admin routes (no auth required - visible to everyone)
+app.get('/admin/votes', adminApi.getAdminVotes);
+app.post('/admin/select-winner', adminApi.selectWinner);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);
