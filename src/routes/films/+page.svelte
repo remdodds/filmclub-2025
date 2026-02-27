@@ -155,7 +155,7 @@
               in:scale={{ duration: 400, delay: i * 50, start: 0.9, easing: cubicOut }}
               out:scale={{ duration: 300, start: 1, easing: cubicOut }}
             >
-              <CinemaCard variant="poster" spotlight={true} className="film-card">
+              <CinemaCard variant="poster" className="film-card">
                 <div class="p-6 relative">
                   <div class="flex items-start gap-3">
                     <Icon

@@ -177,7 +177,7 @@
               <div
                 in:scale={{ duration: 400, delay: 200 + (i * 100), start: 0.95, easing: cubicOut }}
               >
-                <CinemaCard variant="poster" spotlight={true}>
+                <CinemaCard variant="poster">
                   <div class="p-8">
                     <div class="flex items-center gap-4 mb-6">
                       <Icon

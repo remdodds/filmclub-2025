@@ -67,7 +67,6 @@
         >
           <CinemaCard
             variant="poster"
-            spotlight={true}
             clickable={true}
             on:click={() => navigateTo('/films')}
           >
@@ -91,7 +90,6 @@
         >
           <CinemaCard
             variant="poster"
-            spotlight={true}
             clickable={true}
             on:click={() => navigateTo('/vote')}
           >
@@ -115,7 +113,6 @@
         >
           <CinemaCard
             variant="poster"
-            spotlight={true}
             clickable={true}
             on:click={() => navigateTo('/history')}
           >
