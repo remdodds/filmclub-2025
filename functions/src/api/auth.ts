@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { getAuth } from 'firebase-admin/auth';
 import { db } from '../utils/db';
 import { verifyPassword, createSession, validateSession } from '../utils/auth';
 import { validatePassword as validatePasswordLogic } from '../utils/auth.logic';
@@ -141,5 +142,42 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error('Session check error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /auth/google
+ * Exchange a Firebase ID token (from Google Sign-In) for a session token
+ *
+ * Request body:
+ * {
+ *   idToken: string  — Firebase ID token obtained from the client SDK
+ * }
+ *
+ * Response:
+ * {
+ *   sessionToken: string,
+ *   visitorId: string   — the user's stable Google uid
+ * }
+ */
+export async function loginWithGoogle(req: Request, res: Response): Promise<void> {
+  try {
+    const { idToken } = req.body;
+    if (!idToken || typeof idToken !== 'string') {
+      res.status(400).json({ error: 'idToken is required' });
+      return;
+    }
+
+    // Verify the Firebase ID token using the Admin SDK
+    const decoded = await getAuth().verifyIdToken(idToken);
+    const visitorId = decoded.uid; // stable Google user ID
+
+    // Create a Firestore session exactly like the password flow
+    const sessionToken = await createSession(visitorId);
+
+    res.status(200).json({ sessionToken, visitorId });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(401).json({ error: 'Invalid or expired Google token' });
   }
 }

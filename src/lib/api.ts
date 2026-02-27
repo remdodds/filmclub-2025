@@ -24,6 +24,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  async loginWithGoogle(idToken: string) {
+    const res = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    return handleResponse(res);
+  },
+
   async logout() {
     const res = await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
