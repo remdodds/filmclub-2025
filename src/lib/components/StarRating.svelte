@@ -50,10 +50,9 @@
 
   function getStarLabel(star: number): string {
     const labels = [
-      'I hate this',
-      'Meh',
-      'Sounds good!',
-      'Must watch!'
+      "wouldn't mind",
+      'interested',
+      'yes please!'
     ];
     return labels[star] || '';
   }
