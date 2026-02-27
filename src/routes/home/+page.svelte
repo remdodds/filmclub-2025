@@ -7,10 +7,12 @@
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
+  import type { VotingHistoryRecord } from '$lib/types';
 
   let isLoggedIn = false;
   let logoutLoading = false;
   let mounted = false;
+  let lastWinner: VotingHistoryRecord | null = null;
 
   onMount(async () => {
     auth.init();
@@ -20,8 +22,24 @@
         goto('/');
       }
     });
+
+    try {
+      const data = await api.getVotingHistory(1);
+      const latest = data.history?.[0];
+      if (latest?.winner) {
+        lastWinner = latest;
+      }
+    } catch {
+      // Non-critical - home page still works without this
+    }
+
     mounted = true;
   });
+
+  function formatDate(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
 
   function navigateTo(path: string) {
     goto(path);
@@ -53,6 +71,29 @@
           What would you like to do?
         </div>
       </div>
+
+      <!-- Last Winner Banner -->
+      {#if lastWinner}
+        <div
+          class="last-winner-banner mb-10"
+          in:fly={{ y: 20, duration: 600, delay: 100, easing: cubicOut }}
+        >
+          <div class="winner-label">
+            <Icon icon="mdi:trophy" class="w-4 h-4" style="color: var(--accent-gold);" />
+            Last Screening Winner
+          </div>
+          <div class="winner-title">{lastWinner.winner!.title}</div>
+          <div class="winner-meta">
+            {formatDate(lastWinner.closedAt)}
+            <span class="mx-2 opacity-40">•</span>
+            {lastWinner.totalBallots} {lastWinner.totalBallots === 1 ? 'vote' : 'votes'}
+            {#if lastWinner.condorcetWinner}
+              <span class="mx-2 opacity-40">•</span>
+              <span style="color: var(--accent-gold);">Condorcet winner</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
 
       <!-- Navigation Cards Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -206,6 +247,41 @@
     50% {
       filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.9));
     }
+  }
+
+  /* Last Winner Banner */
+  .last-winner-banner {
+    text-align: center;
+    padding: 1.5rem 2rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.03) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.08);
+  }
+
+  .winner-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-bottom: 0.5rem;
+  }
+
+  .winner-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.02em;
+  }
+
+  .winner-meta {
+    font-size: 0.8rem;
+    opacity: 0.6;
   }
 
   /* Grid responsive adjustments */
