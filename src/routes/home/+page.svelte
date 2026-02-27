@@ -7,7 +7,6 @@
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
   import FilmGrain from '$lib/components/FilmGrain.svelte';
-  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
 
   let isLoggedIn = false;
@@ -41,7 +40,6 @@
 </script>
 
 <FilmGrain />
-<SpotlightEffect intensity="low" />
 
 <div class="cinema-home min-h-screen">
   <div class="max-w-4xl mx-auto px-4 py-12">

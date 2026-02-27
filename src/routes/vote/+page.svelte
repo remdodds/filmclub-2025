@@ -9,7 +9,6 @@
   import Icon from '@iconify/svelte';
   import confetti from 'canvas-confetti';
   import FilmGrain from '$lib/components/FilmGrain.svelte';
-  import SpotlightEffect from '$lib/components/SpotlightEffect.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
@@ -99,7 +98,6 @@
 </script>
 
 <FilmGrain />
-<SpotlightEffect intensity="low" />
 
 <div class="vote-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-4xl">
