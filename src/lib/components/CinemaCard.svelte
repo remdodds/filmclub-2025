@@ -1,10 +1,8 @@
 <script lang="ts">
   // Cinema Card - Movie poster-inspired card component
   // Variants: standard, poster, velvet
-  // Features: spotlight effect, dramatic shadows, hover animations
 
   export let variant: 'standard' | 'poster' | 'velvet' = 'standard';
-  export let spotlight: boolean = false;
   export let clickable: boolean = false;
   export let className: string = '';
 </script>
@@ -12,7 +10,6 @@
 {#if clickable}
   <button
     class="cinema-card cinema-card-{variant} {className}"
-    class:spotlight
     class:clickable
     on:click
   >
@@ -21,7 +18,6 @@
 {:else}
   <div
     class="cinema-card cinema-card-{variant} {className}"
-    class:spotlight
   >
     <slot />
   </div>
@@ -99,21 +95,6 @@
     pointer-events: none;
   }
 
-  /* Spotlight effect */
-  .cinema-card.spotlight::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      circle at center,
-      rgba(255, 248, 220, 0.15) 0%,
-      transparent 60%
-    );
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity var(--timing-slow);
-  }
-
   /* Hover effects */
   .cinema-card:hover {
     transform: translateY(-4px);
@@ -137,10 +118,6 @@
     box-shadow:
       var(--shadow-dramatic),
       0 0 25px rgba(107, 15, 26, 0.6);
-  }
-
-  .cinema-card.spotlight:hover::after {
-    opacity: 1;
   }
 
   /* Clickable state */

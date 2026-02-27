@@ -5,7 +5,6 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import FilmGrain from '$lib/components/FilmGrain.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
 
@@ -35,8 +34,6 @@
     }
   }
 </script>
-
-<FilmGrain />
 
 <div class="cinema-entrance">
   <div class="hero min-h-screen relative">
