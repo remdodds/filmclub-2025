@@ -125,11 +125,34 @@
           </CinemaCard>
         </div>
 
-        <!-- Exit/Logout Card -->
+        <!-- Admin Card -->
         <div
           class="stagger-item"
           style="animation-delay: 400ms;"
           in:fly={{ y: 30, duration: 600, delay: 500, easing: cubicOut }}
+        >
+          <CinemaCard
+            variant="poster"
+            clickable={true}
+            on:click={() => navigateTo('/admin')}
+          >
+            <div class="p-8 text-center">
+              <Icon
+                icon="mdi:cog"
+                class="w-16 h-16 mx-auto mb-4"
+                style="color: var(--accent-gold);"
+              />
+              <h2 class="text-title mb-2">Admin</h2>
+              <p class="text-small opacity-70">View votes &amp; select winner</p>
+            </div>
+          </CinemaCard>
+        </div>
+
+        <!-- Exit/Logout Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 500ms;"
+          in:fly={{ y: 30, duration: 600, delay: 600, easing: cubicOut }}
         >
           <CinemaCard
             variant="standard"
