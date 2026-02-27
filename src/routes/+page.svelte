@@ -57,7 +57,7 @@
         </div>
 
         <div in:fly={{ y: 30, duration: 800, delay: 500, easing: cubicOut }}>
-          <CinemaCard variant="velvet" spotlight={true} className="w-full max-w-md">
+          <CinemaCard variant="velvet" className="w-full max-w-md">
             <form class="p-8" on:submit={handleLogin}>
               <div class="form-control mb-4">
                 <label class="label mb-2" for="password">
