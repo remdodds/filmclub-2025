@@ -8,7 +8,6 @@
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
   import confetti from 'canvas-confetti';
-  import FilmGrain from '$lib/components/FilmGrain.svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
@@ -96,8 +95,6 @@
     goto('/home');
   }
 </script>
-
-<FilmGrain />
 
 <div class="vote-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-4xl">
