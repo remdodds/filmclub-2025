@@ -80,7 +80,7 @@
         >
           <div class="winner-label">
             <Icon icon="mdi:trophy" class="w-4 h-4" style="color: var(--accent-gold);" />
-            Last Screening Winner
+            Next Up
           </div>
           <div class="winner-title">{lastWinner.winner!.title}</div>
           <div class="winner-meta">
