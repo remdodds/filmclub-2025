@@ -176,8 +176,9 @@ export async function loginWithGoogle(req: Request, res: Response): Promise<void
     const sessionToken = await createSession(visitorId);
 
     res.status(200).json({ sessionToken, visitorId });
-  } catch (error) {
-    console.error('Google login error:', error);
-    res.status(401).json({ error: 'Invalid or expired Google token' });
+  } catch (error: any) {
+    const code: string = error?.code ?? 'unknown';
+    console.error('Google login error [%s]:', code, error?.message ?? error);
+    res.status(401).json({ error: 'Invalid or expired Google token', code });
   }
 }
