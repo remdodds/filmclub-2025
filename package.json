@@ -28,6 +28,7 @@
   "dependencies": {
     "@iconify/svelte": "^5.2.1",
     "canvas-confetti": "^1.9.4",
+    "firebase": "^12.10.0",
     "svelte-sonner": "^1.0.7"
   }
 }
