@@ -147,11 +147,13 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /auth/google
- * Exchange a Firebase ID token (from Google Sign-In) for a session token
+ * Exchange a Firebase ID token (from Google Sign-In) for a session token.
+ * Also requires the club password to be provided and verified.
  *
  * Request body:
  * {
  *   idToken: string  — Firebase ID token obtained from the client SDK
+ *   password: string — club password
  * }
  *
  * Response:
@@ -162,9 +164,28 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
  */
 export async function loginWithGoogle(req: Request, res: Response): Promise<void> {
   try {
-    const { idToken } = req.body;
+    const { idToken, password } = req.body;
     if (!idToken || typeof idToken !== 'string') {
       res.status(400).json({ error: 'idToken is required' });
+      return;
+    }
+
+    // Validate and verify the club password
+    const validation = validatePasswordLogic(password);
+    if (!validation.isValid) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
+
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(500).json({ error: 'Club not configured. Please run setup first.' });
+      return;
+    }
+
+    const isValid = await verifyPassword(password, configDoc.data()!.passwordHash);
+    if (!isValid) {
+      res.status(401).json({ error: 'Invalid password' });
       return;
     }
 

@@ -24,11 +24,11 @@ export const api = {
     return handleResponse(res);
   },
 
-  async loginWithGoogle(idToken: string) {
+  async loginWithGoogle(idToken: string, password: string) {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
+      body: JSON.stringify({ idToken, password })
     });
     return handleResponse(res);
   },

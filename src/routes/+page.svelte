@@ -37,13 +37,17 @@
   }
 
   async function handleGoogleLogin() {
+    if (!password) {
+      error = 'Please enter the club password before signing in with Google';
+      return;
+    }
     error = '';
     loading = true;
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(firebaseAuth, provider);
       const idToken = await result.user.getIdToken();
-      const data = await api.loginWithGoogle(idToken);
+      const data = await api.loginWithGoogle(idToken, password);
       auth.login(data.sessionToken, data.visitorId);
       goto('/home');
     } catch (err) {
