@@ -1,5 +1,13 @@
 # Claude Code - Film Club Project
 
+## Non-Negotiable Development Rules
+
+1. **Always use TDD.** Never write production code without a failing test first. This is not optional.
+2. **Maintain code coverage.** Coverage must not decrease. Run coverage checks before committing. If a change would reduce coverage, add the missing tests first.
+3. **Follow Red-Green-Refactor strictly.** Red → Green → Refactor, in that order, every time.
+
+---
+
 ## Development Approach: Test-Driven Development (TDD)
 
 ### TDD Principles
@@ -7,9 +15,9 @@
 We follow strict Test-Driven Development for this project:
 
 1. **Red-Green-Refactor Cycle**
-   - Write a failing test first (Red)
-   - Write minimal code to make it pass (Green)
-   - Refactor while keeping tests green (Refactor)
+   - **Red**: Write a failing test that describes the desired behavior
+   - **Green**: Write the minimal production code to make the test pass — nothing more
+   - **Refactor**: Clean up code and tests while keeping everything green
 
 2. **Test First, Always**
    - Never write production code without a failing test
@@ -141,6 +149,27 @@ npm run test:coverage      # Coverage report
 - **API Endpoints**: 90%+ coverage (test happy path + errors)
 - **Voting Algorithm**: 100% coverage (critical business logic)
 - **Frontend Components**: 80%+ coverage (UI + user interactions)
+
+### Coverage Maintenance Rules
+
+**Coverage must never decrease.** For any code that tests our own code (unit tests, integration tests):
+
+1. **Before committing**: Run coverage and compare against the baseline
+   ```bash
+   # Backend
+   cd functions && npm run test:coverage
+
+   # Frontend
+   npm run test:coverage
+   ```
+
+2. **New code requires new tests**: Adding a function, class, or module without tests is not allowed. The test must be written first (TDD), so coverage should naturally stay intact.
+
+3. **No coverage regressions**: If your changes cause coverage to drop below the thresholds, you must add the missing tests before the work is considered done.
+
+4. **Coverage applies to our code only**: Do not count third-party libraries, generated files, type definitions, or configuration files toward coverage targets. Tests covering external dependencies (mocked Firebase, external APIs) are not required to reach the coverage thresholds — only code we own.
+
+5. **Deleting code**: Removing dead code is encouraged, but also delete the corresponding tests. Do not leave orphaned tests or untested stubs.
 
 ### Firebase Testing Setup
 
