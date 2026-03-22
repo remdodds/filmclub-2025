@@ -9,68 +9,6 @@ import { getAuth } from 'firebase-admin/auth';
 import { db } from '../utils/db';
 import { verifyPassword, createSession, validateSession } from '../utils/auth';
 import { validatePassword as validatePasswordLogic } from '../utils/auth.logic';
-import { v4 as uuidv4 } from 'uuid';
-
-/**
- * POST /auth/login
- * Verify password and create session
- *
- * Request body:
- * {
- *   password: string
- * }
- *
- * Response:
- * {
- *   sessionToken: string,
- *   visitorId: string
- * }
- */
-export async function login(req: Request, res: Response): Promise<void> {
-  try {
-    const { password } = req.body;
-
-    // Validate password format
-    const validation = validatePasswordLogic(password);
-    if (!validation.isValid) {
-      res.status(400).json({ error: validation.error });
-      return;
-    }
-
-    // Get club config with password hash
-    const configDoc = await db.collection('config').doc('club').get();
-    if (!configDoc.exists) {
-      res.status(500).json({ error: 'Club not configured. Please run setup first.' });
-      return;
-    }
-
-    const config = configDoc.data()!;
-    const passwordHash = config.passwordHash;
-
-    // Verify password
-    const isValid = await verifyPassword(password, passwordHash);
-    if (!isValid) {
-      res.status(401).json({ error: 'Invalid password' });
-      return;
-    }
-
-    // Create or retrieve visitor ID
-    // For now, generate a new visitor ID each time
-    // In production, you might want to track this via cookies/localStorage
-    const visitorId = uuidv4();
-
-    // Create session
-    const sessionToken = await createSession(visitorId);
-
-    res.status(200).json({
-      sessionToken,
-      visitorId,
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
 
 /**
  * POST /auth/logout
@@ -162,9 +100,35 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
  */
 export async function loginWithGoogle(req: Request, res: Response): Promise<void> {
   try {
-    const { idToken } = req.body;
+    const { idToken, password } = req.body;
     if (!idToken || typeof idToken !== 'string') {
       res.status(400).json({ error: 'idToken is required' });
+      return;
+    }
+
+    if (!password || typeof password !== 'string') {
+      res.status(400).json({ error: 'password is required' });
+      return;
+    }
+
+    // Validate password format
+    const validation = validatePasswordLogic(password);
+    if (!validation.isValid) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
+
+    // Verify club password against stored hash
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(500).json({ error: 'Club not configured. Please run setup first.' });
+      return;
+    }
+
+    const config = configDoc.data()!;
+    const isValidPassword = await verifyPassword(password, config.passwordHash);
+    if (!isValidPassword) {
+      res.status(401).json({ error: 'Invalid password' });
       return;
     }
 

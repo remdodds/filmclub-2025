@@ -70,7 +70,6 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction): 
 }
 
 // Public routes (no auth required)
-app.post('/auth/login', authApi.login);
 app.post('/auth/google', authApi.loginWithGoogle);
 app.get('/config', configApi.getConfig);
 

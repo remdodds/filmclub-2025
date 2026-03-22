@@ -3,19 +3,18 @@
  */
 
 import { Request, Response } from 'express';
-import { login, logout, checkSession, loginWithGoogle } from './auth';
+import { logout, checkSession, loginWithGoogle } from './auth';
 
 // Mock all dependencies
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
 jest.mock('../utils/auth');
 jest.mock('../utils/auth.logic');
-jest.mock('uuid', () => ({ v4: jest.fn().mockReturnValue('mock-visitor-id') }));
+jest.mock('uuid', () => ({ v4: jest.fn() }));
 jest.mock('firebase-admin/auth', () => ({ getAuth: jest.fn() }));
 
 import { db } from '../utils/db';
 import { verifyPassword, createSession, validateSession } from '../utils/auth';
 import { validatePassword as validatePasswordLogic } from '../utils/auth.logic';
-import { v4 as uuidv4 } from 'uuid';
 import { getAuth } from 'firebase-admin/auth';
 
 const mockDb = db as jest.Mocked<typeof db>;
@@ -23,122 +22,7 @@ const mockVerifyPassword = verifyPassword as jest.Mock;
 const mockCreateSession = createSession as jest.Mock;
 const mockValidateSession = validateSession as jest.Mock;
 const mockValidatePasswordLogic = validatePasswordLogic as jest.Mock;
-const mockUuidv4 = uuidv4 as jest.Mock;
 const mockGetAuth = getAuth as jest.Mock;
-
-describe('login', () => {
-  let mockRequest: Partial<Request>;
-  let mockResponse: Partial<Response>;
-  let mockJson: jest.Mock;
-  let mockStatus: jest.Mock;
-
-  beforeEach(() => {
-    mockJson = jest.fn();
-    mockStatus = jest.fn().mockReturnThis();
-    mockRequest = {
-      body: { password: 'testpassword' },
-    };
-    mockResponse = {
-      status: mockStatus,
-      json: mockJson,
-    };
-    jest.clearAllMocks();
-  });
-
-  it('returns 400 with validation error when password fails validation', async () => {
-    // Arrange
-    mockValidatePasswordLogic.mockReturnValue({ isValid: false, error: 'Password is too short' });
-
-    // Act
-    await login(mockRequest as Request, mockResponse as Response);
-
-    // Assert
-    expect(mockStatus).toHaveBeenCalledWith(400);
-    expect(mockJson).toHaveBeenCalledWith({ error: 'Password is too short' });
-  });
-
-  it('returns 500 when club is not configured (configDoc.exists is false)', async () => {
-    // Arrange
-    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
-    const mockDocGet = jest.fn().mockResolvedValue({ exists: false });
-    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
-    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
-    mockDb.collection = mockCollection;
-
-    // Act
-    await login(mockRequest as Request, mockResponse as Response);
-
-    // Assert
-    expect(mockStatus).toHaveBeenCalledWith(500);
-    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured. Please run setup first.' });
-  });
-
-  it('returns 401 when password does not match', async () => {
-    // Arrange
-    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
-    const mockDocGet = jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({ passwordHash: 'hashed-password' }),
-    });
-    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
-    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
-    mockDb.collection = mockCollection;
-    mockVerifyPassword.mockResolvedValue(false);
-
-    // Act
-    await login(mockRequest as Request, mockResponse as Response);
-
-    // Assert
-    expect(mockStatus).toHaveBeenCalledWith(401);
-    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid password' });
-  });
-
-  it('returns 200 with sessionToken and visitorId on successful login', async () => {
-    // Arrange
-    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
-    const mockDocGet = jest.fn().mockResolvedValue({
-      exists: true,
-      data: () => ({ passwordHash: 'hashed-password' }),
-    });
-    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
-    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
-    mockDb.collection = mockCollection;
-    mockVerifyPassword.mockResolvedValue(true);
-    mockUuidv4.mockReturnValue('visitor-uuid-1234');
-    mockCreateSession.mockResolvedValue('session-token-abc');
-
-    // Act
-    await login(mockRequest as Request, mockResponse as Response);
-
-    // Assert
-    expect(mockUuidv4).toHaveBeenCalled();
-    expect(mockCreateSession).toHaveBeenCalledWith('visitor-uuid-1234');
-    expect(mockStatus).toHaveBeenCalledWith(200);
-    expect(mockJson).toHaveBeenCalledWith({
-      sessionToken: 'session-token-abc',
-      visitorId: 'visitor-uuid-1234',
-    });
-  });
-
-  it('returns 500 on unexpected error', async () => {
-    // Arrange
-    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
-    const mockCollection = jest.fn().mockImplementation(() => {
-      throw new Error('Firestore unavailable');
-    });
-    mockDb.collection = mockCollection;
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-    // Act
-    await login(mockRequest as Request, mockResponse as Response);
-
-    // Assert
-    expect(mockStatus).toHaveBeenCalledWith(500);
-    expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
-
-    consoleErrorSpy.mockRestore();
-  });
-});
 
 describe('logout', () => {
   let mockRequest: Partial<Request>;
@@ -329,7 +213,7 @@ describe('loginWithGoogle', () => {
     mockJson = jest.fn();
     mockStatus = jest.fn().mockReturnThis();
     mockRequest = {
-      body: { idToken: 'google-id-token' },
+      body: { idToken: 'google-id-token', password: 'clubpassword' },
     };
     mockResponse = {
       status: mockStatus,
@@ -342,7 +226,7 @@ describe('loginWithGoogle', () => {
 
   it('returns 400 when idToken is missing from request body', async () => {
     // Arrange
-    mockRequest.body = {};
+    mockRequest.body = { password: 'clubpassword' };
 
     // Act
     await loginWithGoogle(mockRequest as Request, mockResponse as Response);
@@ -354,7 +238,7 @@ describe('loginWithGoogle', () => {
 
   it('returns 400 when idToken is not a string', async () => {
     // Arrange
-    mockRequest.body = { idToken: 12345 };
+    mockRequest.body = { idToken: 12345, password: 'clubpassword' };
 
     // Act
     await loginWithGoogle(mockRequest as Request, mockResponse as Response);
@@ -364,8 +248,78 @@ describe('loginWithGoogle', () => {
     expect(mockJson).toHaveBeenCalledWith({ error: 'idToken is required' });
   });
 
+  it('returns 400 when password is missing from request body', async () => {
+    // Arrange
+    mockRequest.body = { idToken: 'google-id-token' };
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'password is required' });
+  });
+
+  it('returns 400 when password fails validation', async () => {
+    // Arrange
+    mockRequest.body = { idToken: 'google-id-token', password: 'short' };
+    mockValidatePasswordLogic.mockReturnValue({ isValid: false, error: 'Password must be at least 8 characters' });
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Password must be at least 8 characters' });
+  });
+
+  it('returns 500 when club is not configured', async () => {
+    // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({ exists: false });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured. Please run setup first.' });
+  });
+
+  it('returns 401 when club password does not match', async () => {
+    // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(false);
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(401);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid password' });
+  });
+
   it('verifies the Firebase ID token and creates a session on success', async () => {
     // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(true);
     mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
     mockVerifyIdToken.mockResolvedValue({ uid: 'firebase-uid-abc' });
     mockCreateSession.mockResolvedValue('new-session-token');
@@ -381,6 +335,15 @@ describe('loginWithGoogle', () => {
 
   it('returns 200 with sessionToken and visitorId (uid from decoded token) on success', async () => {
     // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(true);
     mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
     mockVerifyIdToken.mockResolvedValue({ uid: 'firebase-uid-abc' });
     mockCreateSession.mockResolvedValue('new-session-token');
@@ -398,6 +361,15 @@ describe('loginWithGoogle', () => {
 
   it('returns 401 with error code when token verification fails', async () => {
     // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(true);
     const authError = Object.assign(new Error('Token expired'), { code: 'auth/id-token-expired' });
     mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
     mockVerifyIdToken.mockRejectedValue(authError);
@@ -418,6 +390,15 @@ describe('loginWithGoogle', () => {
 
   it("uses 'unknown' as code when error has no code property", async () => {
     // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(true);
     const plainError = new Error('Something went wrong');
     mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
     mockVerifyIdToken.mockRejectedValue(plainError);
