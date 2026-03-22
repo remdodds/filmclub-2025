@@ -433,4 +433,111 @@ describe('getVotingHistory', () => {
     // Assert
     expect(history).toEqual([]);
   });
+
+  it('should call .toDate() on Firestore Timestamp values when mapping history records', async () => {
+    // Arrange — doc data has Firestore Timestamp objects (with .toDate()) instead of plain Dates
+    const closedDate = new Date('2024-03-01');
+    const openedDate = new Date('2024-02-22');
+    const closedTimestamp = { toDate: () => closedDate };
+    const openedTimestamp = { toDate: () => openedDate };
+
+    (db.collection as jest.Mock).mockReturnValue({
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({
+        docs: [
+          {
+            id: 'round-1',
+            data: () => ({
+              roundId: 'round-1',
+              closedAt: closedTimestamp,
+              openedAt: openedTimestamp,
+              winner: null,
+              totalBallots: 3,
+              rankings: [],
+              pairwiseComparisons: [],
+            }),
+          },
+        ],
+      }),
+    });
+
+    // Act
+    const history = await getVotingHistory();
+
+    // Assert — the Timestamp .toDate() method was called and the result is a proper Date
+    expect(history[0].closedAt).toBe(closedDate);
+    expect(history[0].openedAt).toBe(openedDate);
+  });
+});
+
+describe('archiveVotingRound with Firestore Timestamps', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should call .toDate() on Firestore Timestamp values for openedAt and closedAt', async () => {
+    // Arrange — round data has Firestore Timestamp objects instead of plain Dates
+    const openedDate = new Date('2024-01-01');
+    const closedDate = new Date('2024-01-08');
+    const openedTimestamp = { toDate: () => openedDate };
+    const closedTimestamp = { toDate: () => closedDate };
+
+    const roundId = 'round-ts';
+    const votingRoundData = {
+      status: 'closed',
+      openedAt: openedTimestamp,
+      closedAt: closedTimestamp,
+      closesAt: closedTimestamp,
+      candidateCount: 1,
+      createdAt: openedTimestamp,
+      winner: null,
+      condorcetWinner: false,
+      totalBallots: 0,
+    };
+
+    const votingResults = {
+      winner: null,
+      condorcetWinner: false,
+      rankings: [],
+      pairwiseComparisons: [],
+      totalBallots: 0,
+      algorithm: 'Condorcet',
+    };
+
+    const mockSet = jest.fn().mockResolvedValue(undefined);
+
+    (db.collection as jest.Mock).mockImplementation((collectionName: string) => {
+      if (collectionName === 'votingRounds') {
+        return {
+          doc: () => ({
+            get: jest.fn().mockResolvedValue({ id: roundId, data: () => votingRoundData, exists: true }),
+            collection: () => ({
+              doc: () => ({
+                get: jest.fn().mockResolvedValue({ data: () => votingResults, exists: true }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (collectionName === 'films') {
+        return { where: jest.fn().mockReturnThis(), get: jest.fn().mockResolvedValue({ docs: [] }) };
+      }
+      if (collectionName === 'votingHistory') {
+        return { doc: jest.fn().mockReturnValue({ set: mockSet }) };
+      }
+      return undefined;
+    });
+
+    // Act
+    await archiveVotingRound(roundId);
+
+    // Assert — Timestamps were converted via .toDate() before being stored
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        openedAt: openedDate,
+        closedAt: closedDate,
+      }),
+    );
+  });
 });
