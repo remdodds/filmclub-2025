@@ -76,6 +76,71 @@ Voting can also be opened and closed manually by any member via the admin panel.
 
 ---
 
+## User Personas
+
+### Persona 1: The Regular Member
+
+> Someone who joins the club to participate each week. They nominate a film or two throughout the week, show up on Friday/Saturday to cast votes on the films they want to watch, and turns up to movie night.
+
+**Key behaviours:**
+- Nominates films (1-2 per cycle)
+- Votes on the films they want to watch during the voting window
+- Doesn't care about the admin side — they just want a fair pick
+
+**Goals:** Have their taste represented, enjoy the process feeling fair
+**Frustrations:** Forgetting to vote before Saturday closes, their film never winning
+
+---
+
+### Persona 2: The Organiser
+
+> The person who keeps the club running. They manage the voting rounds — opening and closing them manually when needed, and checking the admin panel to see how votes are coming in.
+
+**Key behaviours:**
+- Opens and closes voting rounds (manually, or relies on the Friday/Saturday automation)
+- Monitors vote progress via the admin panel
+
+**Goals:** A smooth, drama-free weekly process where everyone feels heard
+**Frustrations:** Having to intervene manually when the automation doesn't fit the week
+
+---
+
+### Persona 3: The Casual Member
+
+> Someone who's part of the club but doesn't engage every week. They might nominate occasionally if a film is on their mind, but often just show up to watch whatever was picked — trusting the process without actively participating in it.
+
+**Key behaviours:**
+- Rarely nominates films
+- Sometimes votes, sometimes doesn't
+- Views the result to see what's being watched
+
+**Goals:** Enjoy movie night without much effort
+**Frustrations:** The winning film being something they'd never have picked
+
+---
+
+## User Stories
+
+Personas are hierarchical — each tier inherits all stories from the tier above.
+
+### Casual Member
+- I can log in with the club password
+- I can view the list of nominated films
+- I can view the watch history
+- I can view the current round's results
+
+### Regular Member
+- I can nominate a film
+- I can vote on films during an open round
+- I can update my votes before the round closes
+
+### Organiser
+- I can manually open a voting round
+- I can manually close a voting round and trigger a vote count to reveal the winner
+- I can view all votes cast in the current round
+
+---
+
 ## Tech Stack
 
 ### Frontend
