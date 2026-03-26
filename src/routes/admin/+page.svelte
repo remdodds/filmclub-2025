@@ -279,14 +279,14 @@
           <div class="card-body">
             <h2 class="card-title text-xl mb-4">Votes Cast This Round</h2>
             <div class="overflow-x-auto">
-              <table class="table table-sm">
+              <table class="table">
                 <thead>
-                  <tr>
-                    <th class="text-base-content/50 text-xs uppercase tracking-wide">Voter</th>
-                    <th class="text-base-content/50 text-xs uppercase tracking-wide">Submitted</th>
+                  <tr class="align-bottom">
+                    <th class="text-base-content/50 text-xs uppercase tracking-wide whitespace-nowrap">Voter</th>
+                    <th class="text-base-content/50 text-xs uppercase tracking-wide whitespace-nowrap">Submitted</th>
                     {#each data.candidates as film}
-                      <th class="text-base-content/50 text-xs uppercase tracking-wide text-center max-w-24">
-                        <div class="truncate" title={film.title}>{film.title}</div>
+                      <th class="text-center px-3">
+                        <div class="film-header-cell" title={film.title}>{film.title}</div>
                       </th>
                     {/each}
                   </tr>
@@ -294,23 +294,23 @@
                 <tbody>
                   {#each data.ballots as ballot}
                     <tr class="hover:bg-base-200/10">
-                      <td>
-                        <code class="text-xs text-base-content/60 font-mono">
+                      <td class="py-3">
+                        <code class="text-xs text-base-content/60 font-mono whitespace-nowrap">
                           {ballot.visitorId.slice(0, 8)}…
                         </code>
                       </td>
-                      <td class="text-xs text-base-content/50">
+                      <td class="text-xs text-base-content/50 whitespace-nowrap py-3">
                         {formatDate(ballot.submittedAt)}
                       </td>
                       {#each data.candidates as film}
                         {@const score = getScoreForFilm(ballot, film.id)}
-                        <td class="text-center">
+                        <td class="text-center px-3 py-3">
                           {#if score !== null}
-                            <span class="text-sm {getScoreClass(score)}" title="Score: {score}/3">
+                            <span class="text-base {getScoreClass(score)}" title="Score: {score}/3">
                               {getStars(score)}
                             </span>
                           {:else}
-                            <span class="text-base-content/20 text-xs">—</span>
+                            <span class="text-base-content/20 text-sm">—</span>
                           {/if}
                         </td>
                       {/each}
@@ -341,5 +341,17 @@
   :global(.bg-clip-text) {
     -webkit-background-clip: text;
     background-clip: text;
+  }
+
+  .film-header-cell {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: oklch(var(--bc) / 0.6);
+    max-height: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>
