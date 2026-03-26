@@ -119,6 +119,28 @@ Voting can also be opened and closed manually by any member via the admin panel.
 
 ---
 
+## User Stories
+
+Personas are hierarchical — each tier inherits all stories from the tier above.
+
+### Casual Member
+- I can log in with the club password
+- I can view the list of nominated films
+- I can view the watch history
+- I can view the current round's results
+
+### Regular Member
+- I can nominate a film
+- I can vote on films during an open round
+- I can update my votes before the round closes
+
+### Organiser
+- I can manually open a voting round
+- I can manually close a voting round and trigger a vote count to reveal the winner
+- I can view all votes cast in the current round
+
+---
+
 ## Tech Stack
 
 ### Frontend
