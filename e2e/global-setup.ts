@@ -2,32 +2,68 @@ import { chromium } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const API_BASE = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
+
+async function getFirebaseIdToken(apiKey: string, email: string, password: string): Promise<string> {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Firebase sign-in failed: ${err?.error?.message ?? res.status}`);
+  }
+  const data = await res.json();
+  return data.idToken as string;
+}
+
+async function getSessionToken(idToken: string, clubPassword: string): Promise<{ sessionToken: string; visitorId: string }> {
+  const res = await fetch(`${API_BASE}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken, password: clubPassword }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Backend auth failed: ${err?.error ?? res.status}`);
+  }
+  return res.json();
+}
+
 export default async function globalSetup() {
   const authDir = path.join('e2e', '.auth');
   const authFile = path.join(authDir, 'user.json');
-
-  const sessionToken = process.env.E2E_SESSION_TOKEN;
-  const visitorId = process.env.E2E_VISITOR_ID;
   const baseURL = process.env.E2E_BASE_URL || 'https://filmclubapi.web.app';
 
-  if (!sessionToken || !visitorId) {
+  const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
+  const testEmail = process.env.E2E_TEST_EMAIL;
+  const testPassword = process.env.E2E_TEST_PASSWORD;
+  const clubPassword = process.env.E2E_CLUB_PASSWORD;
+
+  fs.mkdirSync(authDir, { recursive: true });
+
+  if (!firebaseApiKey || !testEmail || !testPassword || !clubPassword) {
     console.warn(
-      'E2E_SESSION_TOKEN or E2E_VISITOR_ID not set — authenticated tests will be skipped or fail.\n' +
-      'Set these env vars with valid credentials to run the full test suite.'
+      'Missing E2E auth env vars (VITE_FIREBASE_API_KEY, E2E_TEST_EMAIL, E2E_TEST_PASSWORD, E2E_CLUB_PASSWORD).\n' +
+      'Authenticated tests will be skipped or fail.'
     );
-    // Write empty storage state so the config reference doesn't error
-    fs.mkdirSync(authDir, { recursive: true });
     fs.writeFileSync(authFile, JSON.stringify({ cookies: [], origins: [] }));
     return;
   }
 
+  // Get a fresh Firebase ID token on every run — no expiry concerns
+  const idToken = await getFirebaseIdToken(firebaseApiKey, testEmail, testPassword);
+  const { sessionToken, visitorId } = await getSessionToken(idToken, clubPassword);
+
+  // Inject into browser localStorage and save storageState
   const browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
-
   await page.goto(baseURL);
-
-  // Inject the session token directly into localStorage (matches how auth.login works)
   await page.evaluate(
     ({ token, id }) => {
       localStorage.setItem('sessionToken', token);
@@ -35,8 +71,6 @@ export default async function globalSetup() {
     },
     { token: sessionToken, id: visitorId }
   );
-
-  fs.mkdirSync(authDir, { recursive: true });
   await context.storageState({ path: authFile });
   await browser.close();
 }
