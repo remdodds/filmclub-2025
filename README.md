@@ -372,7 +372,7 @@ The app includes test endpoints and scripts for testing voting functionality in 
    ```
 
 4. **Test in browser**:
-   - Visit: https://filmclub-2025-21c5e.web.app
+   - Visit: https://filmclubapi.web.app
    - Login with password: `filmclub2025`
    - Navigate to voting page
    - Vote on films (0-3 scale)
