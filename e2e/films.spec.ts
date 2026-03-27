@@ -25,10 +25,12 @@ test.describe('Nominated Films page', () => {
     await expect(page).toHaveURL('/home');
   });
 
-  test('shows empty state when no films are nominated', async ({ page }) => {
-    // This passes when there are no films — the empty state or the grid both count
-    const hasEmptyState = await page.getByText('Coming Soon').isVisible().catch(() => false);
-    const hasFilms = await page.locator('.film-card').first().isVisible().catch(() => false);
+  test('shows empty state or film list after loading', async ({ page }) => {
+    // Wait for onMount + API call to complete — input is inside {#if mounted}
+    await expect(page.getByPlaceholder('Enter film title...')).toBeVisible();
+
+    const hasEmptyState = await page.getByRole('heading', { name: 'Coming Soon' }).isVisible().catch(() => false);
+    const hasFilms = await page.locator('h3').first().isVisible().catch(() => false);
     expect(hasEmptyState || hasFilms).toBe(true);
   });
 
