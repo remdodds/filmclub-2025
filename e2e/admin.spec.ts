@@ -24,11 +24,10 @@ test.describe('Admin panel', () => {
   });
 
   test('shows open or closed round status badge', async ({ page }) => {
-    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
-
-    const isOpen = await page.getByText('Open').isVisible().catch(() => false);
-    const isClosed = await page.getByText('Closed / No active round').isVisible().catch(() => false);
-    expect(isOpen || isClosed).toBe(true);
+    // Use .or() with toBeVisible() so Playwright retries until one of the badges appears
+    const openBadge = page.getByText('Open', { exact: true });
+    const closedBadge = page.getByText('Closed / No active round');
+    await expect(openBadge.or(closedBadge)).toBeVisible({ timeout: 15_000 });
   });
 
   test('shows Open Voting Round button when no round is active', async ({ page }) => {

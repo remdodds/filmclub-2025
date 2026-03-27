@@ -19,7 +19,9 @@ test.describe('Voting page', () => {
   });
 
   test('shows voting interface or no-round message', async ({ page }) => {
-    // Depending on app state, either an active round or the "no active voting round" message
+    // Wait for onMount + API call to complete — heading is inside {#if mounted}
+    await expect(page.getByRole('heading', { name: 'Cast Your Votes' })).toBeVisible();
+
     const hasNoRound = await page.getByText('No Active Voting Round').isVisible().catch(() => false);
     const hasClosed = await page.getByText('Voting Has Closed').isVisible().catch(() => false);
     const hasVotingCards = await page.getByText('Rate each film with 0-3 stars').isVisible().catch(() => false);
