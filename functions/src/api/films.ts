@@ -13,7 +13,7 @@ import {
   sortFilmsByDate,
   Film,
 } from '../films/films.logic';
-import { searchFilm, tmdbApiKey } from '../tmdb/tmdb';
+import { searchFilm } from '../tmdb/tmdb';
 
 /**
  * GET /films
@@ -134,7 +134,7 @@ export async function addFilm(req: Request, res: Response): Promise<void> {
     });
 
     // Non-blocking metadata enrichment
-    searchFilm(title, tmdbApiKey.value()).then((metadata) => {
+    searchFilm(title, process.env.TMDB_API_KEY ?? '').then((metadata) => {
       if (metadata) {
         db.collection('films').doc(film.id).update({ metadata }).catch((err) => {
           console.error('Failed to save TMDB metadata:', err);
