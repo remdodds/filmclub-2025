@@ -5,6 +5,10 @@
  * Failures are non-blocking — always returns null on any error.
  */
 
+import { defineSecret } from 'firebase-functions/params';
+
+export const tmdbApiKey = defineSecret('TMDB_API_KEY');
+
 export interface FilmMetadata {
   tmdbId: number;
   posterPath: string | null;
