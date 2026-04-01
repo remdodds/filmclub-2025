@@ -57,6 +57,7 @@ export async function getCurrentVoting(req: Request, res: Response): Promise<voi
       id: doc.id,
       title: doc.data().title,
       addedBy: doc.data().addedBy,
+      metadata: doc.data().metadata ?? undefined,
     }));
 
     // Get user's ballot if visitorId provided

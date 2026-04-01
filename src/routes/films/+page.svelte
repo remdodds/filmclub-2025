@@ -155,15 +155,27 @@
               <CinemaCard variant="poster" className="film-card">
                 <div class="p-6 relative">
                   <div class="flex items-start gap-3">
-                    <Icon
-                      icon="mdi:filmstrip-box"
-                      class="w-8 h-8 flex-shrink-0 mt-1"
-                      style="color: var(--accent-gold);"
-                    />
+                    {#if film.metadata?.posterPath}
+                      <img
+                        src="https://image.tmdb.org/t/p/w92{film.metadata.posterPath}"
+                        alt="{film.title} poster"
+                        class="w-12 rounded flex-shrink-0 object-cover"
+                        style="height: 72px;"
+                      />
+                    {:else}
+                      <Icon
+                        icon="mdi:filmstrip-box"
+                        class="w-8 h-8 flex-shrink-0 mt-1"
+                        style="color: var(--accent-gold);"
+                      />
+                    {/if}
                     <div class="flex-1 min-w-0">
                       <h3 class="text-lg font-bold leading-tight break-words">
-                        {film.title}
+                        {film.title}{#if film.metadata?.releaseYear}&nbsp;<span class="text-sm font-normal opacity-60">({film.metadata.releaseYear})</span>{/if}
                       </h3>
+                      {#if film.metadata?.overview}
+                        <p class="text-xs opacity-60 mt-1 leading-snug">{film.metadata.overview.slice(0, 100)}{film.metadata.overview.length > 100 ? '…' : ''}</p>
+                      {/if}
                     </div>
                   </div>
 
@@ -185,6 +197,10 @@
             </div>
           {/each}
         </div>
+      {/if}
+
+      {#if films.some(f => f.metadata)}
+        <p class="text-xs opacity-40 text-center mt-6">Film data provided by TMDB</p>
       {/if}
     {/if}
   </div>
