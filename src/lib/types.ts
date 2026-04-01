@@ -10,6 +10,13 @@ export interface Film {
     totalScore: number;
     averageScore: number;
   };
+  metadata?: {
+    tmdbId: number;
+    posterPath: string | null;
+    overview: string | null;
+    releaseYear: number | null;
+    fetchedAt: string | Date;
+  };
 }
 
 export interface Config {

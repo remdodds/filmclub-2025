@@ -12,9 +12,14 @@ import {
   sortFilmsByDate,
   Film,
 } from '../films/films.logic';
+import * as tmdb from '../tmdb/tmdb';
 
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
 jest.mock('../films/films.logic');
+jest.mock('../tmdb/tmdb', () => ({
+  searchFilm: jest.fn().mockResolvedValue(null),
+  tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
+}));
 
 describe('Films API', () => {
   let mockRequest: Partial<Request>;
@@ -367,6 +372,26 @@ describe('Films API', () => {
 
       expect(mockStatus).toHaveBeenCalledWith(500);
       expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('still returns 201 when TMDB searchFilm throws (non-blocking enrichment)', async () => {
+      const fakeDate = new Date('2024-01-01');
+      (validateFilmTitle as jest.Mock).mockReturnValue({ isValid: true });
+      mockGet
+        .mockResolvedValueOnce({ docs: [] })
+        .mockResolvedValueOnce({ docs: [] });
+      (canNominateFilm as jest.Mock).mockReturnValue({ canNominate: true });
+      const createdFilm: Film = { id: 'film-new', title: 'The Matrix', addedBy: visitorId, addedAt: fakeDate, status: 'nominated' };
+      (createFilmNomination as jest.Mock).mockReturnValue(createdFilm);
+      (tmdb.searchFilm as jest.Mock).mockRejectedValue(new Error('TMDB network failure'));
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await addFilm(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(201);
+      expect(mockJson).toHaveBeenCalledWith({ film: createdFilm });
 
       consoleErrorSpy.mockRestore();
     });

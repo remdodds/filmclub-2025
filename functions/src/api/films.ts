@@ -13,6 +13,7 @@ import {
   sortFilmsByDate,
   Film,
 } from '../films/films.logic';
+import { searchFilm, tmdbApiKey } from '../tmdb/tmdb';
 
 /**
  * GET /films
@@ -38,6 +39,7 @@ export async function listFilms(req: Request, res: Response): Promise<void> {
         addedBy: data.addedBy,
         addedAt: data.addedAt.toDate(),
         status: data.status,
+        metadata: data.metadata ?? undefined,
       };
     });
 
@@ -131,6 +133,17 @@ export async function addFilm(req: Request, res: Response): Promise<void> {
       status: film.status,
     });
 
+    // Non-blocking metadata enrichment
+    searchFilm(title, tmdbApiKey.value()).then((metadata) => {
+      if (metadata) {
+        db.collection('films').doc(film.id).update({ metadata }).catch((err) => {
+          console.error('Failed to save TMDB metadata:', err);
+        });
+      }
+    }).catch((err) => {
+      console.error('TMDB search failed:', err);
+    });
+
     res.status(201).json({ film });
   } catch (error) {
     console.error('Add film error:', error);
@@ -199,6 +212,7 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
         addedAt: data.addedAt.toDate(),
         status: data.status,
         watchedAt: data.watchedAt?.toDate(),
+        metadata: data.metadata ?? undefined,
       };
     });
 

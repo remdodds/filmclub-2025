@@ -4,6 +4,8 @@
  * Pure business logic for film management
  */
 
+import { FilmMetadata } from '../tmdb/tmdb';
+
 /**
  * Film data structure
  */
@@ -14,6 +16,7 @@ export interface Film {
   addedAt: Date;
   status: 'nominated' | 'watched';
   watchedAt?: Date;
+  metadata?: FilmMetadata;
 }
 
 /**
