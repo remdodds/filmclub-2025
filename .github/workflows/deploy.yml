@@ -42,6 +42,9 @@ jobs:
           cd functions
           npm run build
 
+      - name: Create functions env file
+        run: echo "TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" > functions/.env
+
       - name: Create service account file
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' > $HOME/gcp-key.json
 
