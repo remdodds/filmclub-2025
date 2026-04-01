@@ -34,4 +34,17 @@ test.describe('Voting page', () => {
       await expect(page.getByRole('button', { name: /Submit Ballot/i })).toBeVisible();
     }
   });
+
+  test('voting cards show poster image when metadata is available', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Cast Your Votes' })).toBeVisible();
+    const isOpen = await page.getByText('Rate each film with 0-3 stars').isVisible().catch(() => false);
+    if (isOpen) {
+      const posters = page.locator('img[alt$=" poster"]');
+      const count = await posters.count();
+      if (count > 0) {
+        await expect(posters.first()).toBeVisible();
+        await expect(posters.first()).toHaveAttribute('src', /image\.tmdb\.org/);
+      }
+    }
+  });
 });

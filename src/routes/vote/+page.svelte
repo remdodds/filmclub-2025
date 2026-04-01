@@ -177,11 +177,20 @@
                 <CinemaCard variant="poster">
                   <div class="p-8">
                     <div class="flex items-center gap-4 mb-6">
-                      <Icon
-                        icon="mdi:movie-open"
-                        class="w-10 h-10 flex-shrink-0"
-                        style="color: var(--accent-gold);"
-                      />
+                      {#if film.metadata?.posterPath}
+                        <img
+                          src="https://image.tmdb.org/t/p/w92{film.metadata.posterPath}"
+                          alt="{film.title} poster"
+                          class="w-14 rounded flex-shrink-0 object-cover"
+                          style="height: 84px;"
+                        />
+                      {:else}
+                        <Icon
+                          icon="mdi:movie-open"
+                          class="w-10 h-10 flex-shrink-0"
+                          style="color: var(--accent-gold);"
+                        />
+                      {/if}
                       <h2 class="text-title flex-1">{film.title}</h2>
                     </div>
 

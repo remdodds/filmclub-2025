@@ -10,6 +10,13 @@ export interface Film {
     totalScore: number;
     averageScore: number;
   };
+  metadata?: {
+    tmdbId: number;
+    posterPath: string | null;
+    overview: string | null;
+    releaseYear: number | null;
+    fetchedAt: string | Date;
+  };
 }
 
 export interface Config {
@@ -28,7 +35,17 @@ export interface VotingRound {
   openedAt: string;
   closesAt: string;
   status: 'open' | 'closed';
-  films: { id: string; title: string }[];
+  films: {
+    id: string;
+    title: string;
+    metadata?: {
+      tmdbId: number;
+      posterPath: string | null;
+      overview: string | null;
+      releaseYear: number | null;
+      fetchedAt: string | Date;
+    };
+  }[];
   yourVotes?: Record<string, number>;
 }
 

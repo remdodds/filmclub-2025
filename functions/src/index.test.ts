@@ -9,10 +9,14 @@
  */
 
 jest.mock('firebase-functions/v2/https', () => ({
-  onRequest: jest.fn((app) => app),
+  onRequest: jest.fn((...args: any[]) => args.length === 2 ? args[1] : args[0]),
 }));
 jest.mock('firebase-functions/v2/scheduler', () => ({
   onSchedule: jest.fn((_, handler) => handler),
+}));
+jest.mock('./tmdb/tmdb', () => ({
+  searchFilm: jest.fn().mockResolvedValue(null),
+  tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 jest.mock('uuid', () => ({ v4: jest.fn() }));
 jest.mock('./utils/auth', () => ({ validateSession: jest.fn() }));

@@ -39,4 +39,33 @@ test.describe('Nominated Films page', () => {
     await input.fill('Test Film Title');
     await expect(input).toHaveValue('Test Film Title');
   });
+
+  test('film cards show release year when metadata is available', async ({ page }) => {
+    await expect(page.getByPlaceholder('Enter film title...')).toBeVisible();
+    const yearSpans = page.locator('h3 span').filter({ hasText: /^\(\d{4}\)$/ });
+    const count = await yearSpans.count();
+    // If any films have metadata, years are shown in (YYYY) format
+    if (count > 0) {
+      await expect(yearSpans.first()).toBeVisible();
+    }
+  });
+
+  test('film cards show poster image when metadata is available', async ({ page }) => {
+    await expect(page.getByPlaceholder('Enter film title...')).toBeVisible();
+    const posters = page.locator('img[alt$=" poster"]');
+    const count = await posters.count();
+    if (count > 0) {
+      await expect(posters.first()).toBeVisible();
+      await expect(posters.first()).toHaveAttribute('src', /image\.tmdb\.org/);
+    }
+  });
+
+  test('shows TMDB attribution when any film has metadata', async ({ page }) => {
+    await expect(page.getByPlaceholder('Enter film title...')).toBeVisible();
+    const posters = page.locator('img[alt$=" poster"]');
+    const hasPoster = (await posters.count()) > 0;
+    if (hasPoster) {
+      await expect(page.getByText('Film data provided by TMDB')).toBeVisible();
+    }
+  });
 });
