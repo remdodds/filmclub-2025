@@ -21,9 +21,6 @@ import * as adminApi from './api/admin';
 import { openVotingRound } from './scheduled/openVoting';
 import { closeVotingRound } from './scheduled/closeVoting';
 
-// Import secrets
-import { tmdbApiKey } from './tmdb/tmdb';
-
 // Create Express app
 const app = express();
 
@@ -133,7 +130,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Export HTTP API
-export const api = onRequest({ secrets: [tmdbApiKey] }, app);
+export const api = onRequest(app);
 
 // Export scheduled functions
 export const openVoting = onSchedule(
