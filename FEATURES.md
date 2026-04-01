@@ -70,25 +70,23 @@ interface Film {
 ## Feature 2: Streaming Availability on the Winner Banner
 
 ### Goal
-Show which UK streaming platforms the winning film is available on, with deep links, in the "Next Up" banner on the home page.
+Show which UK streaming platforms the winning film is available on in the "Next Up" banner on the home page. No deep links — just service names.
 
 ### APIs
-- **Movie of the Night Streaming Availability API** (via RapidAPI)
-  - Free tier: 100 req/day — sufficient for weekly usage with caching
-  - TypeScript SDK: `@movieofthenight/streaming-availability`
-  - Endpoint used: `GET /shows/search/title` or `GET /shows/{tmdbId}` (preferred — requires TMDB ID from Feature 1)
-  - Filter by country: `GB`
-- API key: store in Firebase Functions config as `rapidapi.streaming_key`
+- **TMDB Watch Providers**: `GET https://api.themoviedb.org/3/movie/{tmdb_id}/watch/providers?api_key=<key>`
+  - Same TMDB API key as Feature 1 — no additional credentials needed
+  - Returns flatrate (subscription), rent, and buy availability by country
+  - Filter response to `results.GB.flatrate` for UK subscription services
+  - Requires `tmdbId` from Feature 1
 
 ### Caching Strategy
 Store streaming availability in Firestore on the film document under `streamingAvailability`:
 
 ```ts
 interface StreamingService {
-  service: string;        // e.g. "netflix", "prime", "disney"
-  displayName: string;    // e.g. "Netflix", "Amazon Prime"
-  link: string;           // deep link to the title on that service
-  type: 'subscription' | 'rent' | 'buy' | 'free';
+  provider_id: number;
+  provider_name: string;   // e.g. "Netflix", "Amazon Prime Video"
+  logo_path: string;       // TMDB logo path — prefix with https://image.tmdb.org/t/p/w45
 }
 
 interface Film {
@@ -105,16 +103,15 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
 
 ### Backend Changes
 
-**New file: `functions/src/streaming/streaming.ts`**
-- `getStreamingAvailability(tmdbId: number, country: string): Promise<StreamingService[]>`
-  - Calls Movie of the Night API using the TMDB ID
-  - Filters to `country = 'GB'`
-  - Returns array of services (subscription type prioritised)
-  - Returns `[]` on error (non-blocking)
+**Extend `functions/src/tmdb/tmdb.ts`** (from Feature 1)
+- Add `getWatchProviders(tmdbId: number, country: string): Promise<StreamingService[]>`
+  - Calls TMDB watch providers endpoint
+  - Extracts `results[country].flatrate` (subscription services only)
+  - Returns `[]` on error or if no providers found (non-blocking)
 
 **New endpoint: `GET /films/:id/streaming`**
 - Checks Firestore for cached `streamingAvailability` (< 7 days old) → return it
-- Otherwise calls `getStreamingAvailability()`, saves to Firestore, returns result
+- Otherwise calls `getWatchProviders()`, saves to Firestore, returns result
 - Requires film to have `metadata.tmdbId` (from Feature 1) — returns `[]` if not
 
 ### Frontend Changes
@@ -123,18 +120,17 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
 
 **`src/routes/home/+page.svelte`** — in the "Next Up" winner banner:
 - After loading `lastWinner`, call `getStreamingAvailability(lastWinner.winner.filmId)`
-- Display service logos/badges below the winner title
-- Each badge links to the streaming deep link
+- Display service name badges below the winner title (with TMDB logo image if available)
 - Show "Not currently streaming" if array is empty
 - Loading state: skeleton placeholder while fetching
 
 **`src/lib/components/StreamingBadges.svelte`** — new reusable component
 - Props: `services: StreamingService[]`
-- Renders pill badges for each service with icon + name
+- Renders pill badges for each service with logo + name
 - Can reuse on history page later
 
 ### Testing
-- Unit test `getStreamingAvailability()` with mocked API responses
+- Unit test `getWatchProviders()` with mocked fetch responses
 - Test caching logic: cached result returned without API call when fresh
 - Test empty/error state handling
 
@@ -153,22 +149,19 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
 | Key | Where | Value |
 |-----|-------|-------|
 | `tmdb.api_key` | Firebase Functions config | TMDB v3 API key from themoviedb.org |
-| `rapidapi.streaming_key` | Firebase Functions config | RapidAPI key from movieofthenight |
 
 Set with:
 ```bash
-firebase functions:config:set tmdb.api_key="YOUR_KEY" rapidapi.streaming_key="YOUR_KEY"
+firebase functions:config:set tmdb.api_key="YOUR_KEY"
 ```
 
 Access in functions:
 ```ts
-import { defineSecret } from 'firebase-functions/params';
-// or via functions.config().tmdb.api_key
+// functions.config().tmdb.api_key
 ```
 
 ---
 
 ## Attribution Requirements
 
-- TMDB: must display "Powered by TMDB" logo/text wherever TMDB data is shown
-- Movie of the Night: check RapidAPI terms — no explicit attribution required on free tier but good practice to note
+- TMDB: must display "Powered by TMDB" logo/text wherever TMDB data is shown (required by their terms)
