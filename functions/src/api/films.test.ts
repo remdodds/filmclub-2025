@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import { listFilms, addFilm, deleteFilm, getHistory } from './films';
+import { listFilms, addFilm, deleteFilm, getHistory, searchFilms } from './films';
 import { db } from '../utils/db';
 import {
   validateFilmTitle,
@@ -18,6 +18,7 @@ jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
 jest.mock('../films/films.logic');
 jest.mock('../tmdb/tmdb', () => ({
   searchFilm: jest.fn().mockResolvedValue(null),
+  searchFilmSuggestions: jest.fn().mockResolvedValue([]),
   tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 
