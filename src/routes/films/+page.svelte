@@ -23,6 +23,19 @@
   let showDropdown = false;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const suggestionsCache = new Map<string, FilmSuggestion[]>();
+  let inputEl: HTMLInputElement;
+  let dropdownTop = 0;
+  let dropdownLeft = 0;
+  let dropdownWidth = 0;
+
+  function updateDropdownPosition() {
+    if (inputEl) {
+      const rect = inputEl.getBoundingClientRect();
+      dropdownTop = rect.bottom + 4;
+      dropdownLeft = rect.left;
+      dropdownWidth = rect.width;
+    }
+  }
 
   function handleTitleInput() {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -38,7 +51,10 @@
     debounceTimer = setTimeout(async () => {
       if (suggestionsCache.has(query)) {
         suggestions = suggestionsCache.get(query)!;
-        showDropdown = suggestions.length > 0;
+        if (suggestions.length > 0) {
+          updateDropdownPosition();
+          showDropdown = true;
+        }
         return;
       }
 
@@ -47,7 +63,12 @@
         const result = await api.searchFilms(query);
         suggestionsCache.set(query, result.suggestions);
         suggestions = result.suggestions;
-        showDropdown = suggestions.length > 0;
+        if (suggestions.length > 0) {
+          updateDropdownPosition();
+          showDropdown = true;
+        } else {
+          showDropdown = false;
+        }
       } catch {
         suggestions = [];
         showDropdown = false;
@@ -183,6 +204,7 @@
                   class="input input-bordered w-full"
                   style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px;"
                   bind:value={newTitle}
+                  bind:this={inputEl}
                   on:input={handleTitleInput}
                   on:keydown={handleTitleKeydown}
                   disabled={loading}
@@ -196,8 +218,8 @@
                 {/if}
                 {#if showDropdown && suggestions.length > 0}
                   <ul
-                    class="absolute z-50 w-full mt-1 rounded-lg shadow-xl overflow-hidden"
-                    style="background: rgba(20, 20, 20, 0.98); border: 1px solid rgba(212, 175, 55, 0.3);"
+                    class="z-50 rounded-lg shadow-xl overflow-hidden"
+                    style="position: fixed; top: {dropdownTop}px; left: {dropdownLeft}px; width: {dropdownWidth}px; background: rgba(20, 20, 20, 0.98); border: 1px solid rgba(212, 175, 55, 0.3);"
                   >
                     {#each suggestions as suggestion (suggestion.tmdbId)}
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
