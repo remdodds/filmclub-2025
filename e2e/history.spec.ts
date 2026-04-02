@@ -10,12 +10,9 @@ test.describe('Voting History page', () => {
   });
 
   test('shows history records or empty state', async ({ page }) => {
-    // Wait for loading spinner to disappear
-    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
-
-    const hasHistory = await page.getByText(/vote(s)?/).first().isVisible().catch(() => false);
-    const hasEmpty = await page.getByText('No voting history yet').isVisible().catch(() => false);
-    expect(hasHistory || hasEmpty).toBe(true);
+    const historyItem = page.getByText(/vote(s)?/).first();
+    const emptyState = page.getByText('No voting history yet');
+    await expect(historyItem.or(emptyState)).toBeVisible({ timeout: 15_000 });
   });
 
   test('can expand a history round to see details', async ({ page }) => {
