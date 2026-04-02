@@ -84,6 +84,7 @@ app.post('/admin/select-winner', adminApi.selectWinner);
 app.post('/auth/logout', authMiddleware, authApi.logout);
 app.get('/auth/check', authMiddleware, authApi.checkSession);
 
+app.get('/films/search', authMiddleware, filmsApi.searchFilms);
 app.get('/films', authMiddleware, filmsApi.listFilms);
 app.post('/films', authMiddleware, filmsApi.addFilm);
 app.delete('/films/:id', authMiddleware, filmsApi.deleteFilm);

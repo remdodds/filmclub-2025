@@ -1,3 +1,5 @@
+import type { FilmSuggestion } from '$lib/types';
+
 const API_BASE = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
 
 function getToken(): string {
@@ -55,6 +57,13 @@ export const api = {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ title })
+    });
+    return handleResponse(res);
+  },
+
+  async searchFilms(query: string): Promise<{ suggestions: FilmSuggestion[] }> {
+    const res = await fetch(`${API_BASE}/films/search?q=${encodeURIComponent(query)}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
     });
     return handleResponse(res);
   },

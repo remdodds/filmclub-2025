@@ -1,3 +1,10 @@
+export interface FilmSuggestion {
+  tmdbId: number;
+  title: string;
+  releaseYear: number | null;
+  posterPath: string | null;
+}
+
 export interface Film {
   id: string;
   title: string;
