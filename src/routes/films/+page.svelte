@@ -28,6 +28,10 @@
   let dropdownLeft = 0;
   let dropdownWidth = 0;
 
+  function repositionDropdown() {
+    if (showDropdown) updateDropdownPosition();
+  }
+
   function updateDropdownPosition() {
     if (inputEl) {
       const rect = inputEl.getBoundingClientRect();
@@ -162,7 +166,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window on:click={handleClickOutside} on:scroll={repositionDropdown} on:resize={repositionDropdown} />
 
 <div class="films-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-5xl">
