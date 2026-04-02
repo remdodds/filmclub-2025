@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
-  import type { Film } from '$lib/types';
+  import type { Film, FilmSuggestion } from '$lib/types';
   import { fly, scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
@@ -16,6 +16,67 @@
   let loading = false;
   let deletingId: string | null = null;
   let mounted = false;
+
+  // Typeahead state
+  let suggestions: FilmSuggestion[] = [];
+  let suggestionsLoading = false;
+  let showDropdown = false;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const suggestionsCache = new Map<string, FilmSuggestion[]>();
+
+  function handleTitleInput() {
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    const query = newTitle.trim();
+
+    if (query.length < 2) {
+      suggestions = [];
+      showDropdown = false;
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      if (suggestionsCache.has(query)) {
+        suggestions = suggestionsCache.get(query)!;
+        showDropdown = suggestions.length > 0;
+        return;
+      }
+
+      suggestionsLoading = true;
+      try {
+        const result = await api.searchFilms(query);
+        suggestionsCache.set(query, result.suggestions);
+        suggestions = result.suggestions;
+        showDropdown = suggestions.length > 0;
+      } catch {
+        suggestions = [];
+        showDropdown = false;
+      } finally {
+        suggestionsLoading = false;
+      }
+    }, 350);
+  }
+
+  function selectSuggestion(suggestion: FilmSuggestion) {
+    newTitle = suggestion.title;
+    suggestions = [];
+    showDropdown = false;
+  }
+
+  function handleTitleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      suggestions = [];
+      showDropdown = false;
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.typeahead-container')) {
+      suggestions = [];
+      showDropdown = false;
+    }
+  }
 
   onMount(async () => {
     auth.init();
@@ -50,6 +111,8 @@
       await api.addFilm(newTitle.trim());
       toast.success('Film added to nominations!');
       newTitle = '';
+      suggestions = [];
+      showDropdown = false;
       await loadFilms();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add film');
@@ -77,6 +140,8 @@
     goto('/home');
   }
 </script>
+
+<svelte:window on:click={handleClickOutside} />
 
 <div class="films-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-5xl">
@@ -107,17 +172,65 @@
             <label for="film-title" class="text-subtitle text-sm uppercase tracking-wider text-gold mb-3 block">
               Add Film
             </label>
-            <div class="flex gap-3">
-              <input
-                id="film-title"
-                type="text"
-                placeholder="Enter film title..."
-                class="input input-bordered flex-1"
-                style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px;"
-                bind:value={newTitle}
-                disabled={loading}
-                required
-              />
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="typeahead-container relative flex gap-3" on:click|stopPropagation>
+              <div class="relative flex-1">
+                <input
+                  id="film-title"
+                  type="text"
+                  placeholder="Enter film title..."
+                  class="input input-bordered w-full"
+                  style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px;"
+                  bind:value={newTitle}
+                  on:input={handleTitleInput}
+                  on:keydown={handleTitleKeydown}
+                  disabled={loading}
+                  required
+                  autocomplete="off"
+                />
+                {#if suggestionsLoading}
+                  <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span class="loading loading-spinner loading-sm" style="color: var(--accent-gold);"></span>
+                  </div>
+                {/if}
+                {#if showDropdown && suggestions.length > 0}
+                  <ul
+                    class="absolute z-50 w-full mt-1 rounded-lg shadow-xl overflow-hidden"
+                    style="background: rgba(20, 20, 20, 0.98); border: 1px solid rgba(212, 175, 55, 0.3);"
+                  >
+                    {#each suggestions as suggestion (suggestion.tmdbId)}
+                      <!-- svelte-ignore a11y-click-events-have-key-events -->
+                      <li
+                        class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors"
+                        on:click={() => selectSuggestion(suggestion)}
+                      >
+                        {#if suggestion.posterPath}
+                          <img
+                            src="https://image.tmdb.org/t/p/w92{suggestion.posterPath}"
+                            alt="{suggestion.title} poster"
+                            class="flex-shrink-0 rounded object-cover"
+                            style="width: 40px; height: 60px;"
+                          />
+                        {:else}
+                          <div
+                            class="flex-shrink-0 rounded flex items-center justify-center"
+                            style="width: 40px; height: 60px; background: rgba(212, 175, 55, 0.1);"
+                          >
+                            <Icon icon="mdi:filmstrip" class="w-5 h-5" style="color: var(--accent-gold); opacity: 0.5;" />
+                          </div>
+                        {/if}
+                        <span class="text-sm">
+                          {suggestion.title}
+                          {#if suggestion.releaseYear}
+                            <span class="opacity-50 ml-1">({suggestion.releaseYear})</span>
+                          {/if}
+                        </span>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
               <MarqueeButton
                 variant="accent"
                 size="md"

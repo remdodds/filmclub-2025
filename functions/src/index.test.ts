@@ -16,12 +16,13 @@ jest.mock('firebase-functions/v2/scheduler', () => ({
 }));
 jest.mock('./tmdb/tmdb', () => ({
   searchFilm: jest.fn().mockResolvedValue(null),
+  searchFilmSuggestions: jest.fn().mockResolvedValue([]),
   tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 jest.mock('uuid', () => ({ v4: jest.fn() }));
 jest.mock('./utils/auth', () => ({ validateSession: jest.fn() }));
 jest.mock('./api/auth', () => ({ login: jest.fn(), logout: jest.fn(), checkSession: jest.fn(), loginWithGoogle: jest.fn() }));
-jest.mock('./api/films', () => ({ listFilms: jest.fn(), addFilm: jest.fn(), deleteFilm: jest.fn(), getHistory: jest.fn() }));
+jest.mock('./api/films', () => ({ listFilms: jest.fn(), addFilm: jest.fn(), deleteFilm: jest.fn(), getHistory: jest.fn(), searchFilms: jest.fn() }));
 jest.mock('./api/votes', () => ({ getCurrentVoting: jest.fn(), submitVote: jest.fn(), getLatestResults: jest.fn() }));
 jest.mock('./api/config', () => ({ getConfig: jest.fn(), setupClub: jest.fn(), updateVotingSchedule: jest.fn() }));
 jest.mock('./api/history', () => ({ getHistory: jest.fn() }));

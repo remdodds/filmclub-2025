@@ -2,7 +2,7 @@
  * TMDB Film Metadata Tests
  */
 
-import { searchFilm } from './tmdb';
+import { searchFilm, searchFilmSuggestions } from './tmdb';
 
 const FAKE_API_KEY = 'test-api-key-123';
 
@@ -141,5 +141,142 @@ describe('searchFilm', () => {
 
     // Assert
     expect(result!.releaseYear).toBeNull();
+  });
+});
+
+describe('searchFilmSuggestions', () => {
+  let fetchSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(global, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('returns mapped suggestions from the first limit results', async () => {
+    // Arrange
+    const mockResults = [
+      { id: 603, original_title: 'The Matrix', release_date: '1999-03-30', poster_path: '/matrix.jpg' },
+      { id: 604, original_title: 'The Matrix Reloaded', release_date: '2003-05-15', poster_path: '/reloaded.jpg' },
+    ];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: mockResults }),
+    } as Response);
+
+    // Act
+    const suggestions = await searchFilmSuggestions('The Matrix', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions[0]).toEqual({
+      tmdbId: 603,
+      title: 'The Matrix',
+      releaseYear: 1999,
+      posterPath: '/matrix.jpg',
+    });
+    expect(suggestions[1]).toEqual({
+      tmdbId: 604,
+      title: 'The Matrix Reloaded',
+      releaseYear: 2003,
+      posterPath: '/reloaded.jpg',
+    });
+  });
+
+  it('returns empty array when results is empty', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [] }),
+    } as Response);
+
+    // Act
+    const suggestions = await searchFilmSuggestions('nonexistent film xyz', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions).toEqual([]);
+  });
+
+  it('returns empty array on non-OK API status', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      status: 401,
+    } as Response);
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    const suggestions = await searchFilmSuggestions('The Matrix', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns empty array on fetch throw', async () => {
+    // Arrange
+    fetchSpy.mockRejectedValue(new Error('Network error'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    const suggestions = await searchFilmSuggestions('The Matrix', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('respects the limit parameter and only returns up to limit items', async () => {
+    // Arrange
+    const mockResults = Array.from({ length: 10 }, (_, i) => ({
+      id: 600 + i,
+      original_title: `Film ${i}`,
+      release_date: '2000-01-01',
+      poster_path: null,
+    }));
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: mockResults }),
+    } as Response);
+
+    // Act
+    const suggestions = await searchFilmSuggestions('Film', FAKE_API_KEY, 3);
+
+    // Assert
+    expect(suggestions).toHaveLength(3);
+  });
+
+  it('maps posterPath to null when poster_path is absent', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [{ id: 603, original_title: 'The Matrix', release_date: '1999-03-30' }],
+      }),
+    } as Response);
+
+    // Act
+    const suggestions = await searchFilmSuggestions('The Matrix', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions[0].posterPath).toBeNull();
+  });
+
+  it('maps releaseYear to null when release_date is absent', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [{ id: 603, original_title: 'The Matrix', poster_path: null }],
+      }),
+    } as Response);
+
+    // Act
+    const suggestions = await searchFilmSuggestions('The Matrix', FAKE_API_KEY);
+
+    // Assert
+    expect(suggestions[0].releaseYear).toBeNull();
   });
 });

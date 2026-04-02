@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import { listFilms, addFilm, deleteFilm, getHistory } from './films';
+import { listFilms, addFilm, deleteFilm, getHistory, searchFilms } from './films';
 import { db } from '../utils/db';
 import {
   validateFilmTitle,
@@ -18,6 +18,7 @@ jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
 jest.mock('../films/films.logic');
 jest.mock('../tmdb/tmdb', () => ({
   searchFilm: jest.fn().mockResolvedValue(null),
+  searchFilmSuggestions: jest.fn().mockResolvedValue([]),
   tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 
@@ -629,6 +630,69 @@ describe('Films API', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await getHistory(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // searchFilms
+  // ---------------------------------------------------------------------------
+
+  describe('searchFilms', () => {
+    beforeEach(() => {
+      mockRequest = {};
+    });
+
+    it('returns 400 when q query param is missing', async () => {
+      mockRequest = { query: {} } as any;
+
+      await searchFilms(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Query parameter "q" is required' });
+    });
+
+    it('returns 400 when q is empty string', async () => {
+      mockRequest = { query: { q: '' } } as any;
+
+      await searchFilms(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Query parameter "q" is required' });
+    });
+
+    it('calls searchFilmSuggestions with the trimmed query and api key', async () => {
+      mockRequest = { query: { q: '  The Matrix  ' } } as any;
+      (tmdb.searchFilmSuggestions as jest.Mock).mockResolvedValue([]);
+
+      await searchFilms(mockRequest as Request, mockResponse as Response);
+
+      expect(tmdb.searchFilmSuggestions).toHaveBeenCalledWith('The Matrix', 'mock-api-key');
+    });
+
+    it('returns 200 with suggestions array', async () => {
+      const fakeSuggestions = [
+        { tmdbId: 603, title: 'The Matrix', releaseYear: 1999, posterPath: '/matrix.jpg' },
+      ];
+      mockRequest = { query: { q: 'The Matrix' } } as any;
+      (tmdb.searchFilmSuggestions as jest.Mock).mockResolvedValue(fakeSuggestions);
+
+      await searchFilms(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({ suggestions: fakeSuggestions });
+    });
+
+    it('returns 500 on unexpected error', async () => {
+      mockRequest = { query: { q: 'The Matrix' } } as any;
+      (tmdb.searchFilmSuggestions as jest.Mock).mockRejectedValue(new Error('TMDB failure'));
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await searchFilms(mockRequest as Request, mockResponse as Response);
 
       expect(mockStatus).toHaveBeenCalledWith(500);
       expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });

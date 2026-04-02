@@ -13,7 +13,7 @@ import {
   sortFilmsByDate,
   Film,
 } from '../films/films.logic';
-import { searchFilm, tmdbApiKey } from '../tmdb/tmdb';
+import { searchFilm, searchFilmSuggestions, tmdbApiKey } from '../tmdb/tmdb';
 
 /**
  * GET /films
@@ -183,6 +183,32 @@ export async function deleteFilm(req: Request, res: Response): Promise<void> {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Delete film error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /films/search?q=<query>
+ * Search for film suggestions via TMDB
+ *
+ * Response:
+ * {
+ *   suggestions: FilmSuggestion[]
+ * }
+ */
+export async function searchFilms(req: Request, res: Response): Promise<void> {
+  try {
+    const q = req.query.q;
+
+    if (!q || typeof q !== 'string' || q.trim() === '') {
+      res.status(400).json({ error: 'Query parameter "q" is required' });
+      return;
+    }
+
+    const suggestions = await searchFilmSuggestions(q.trim(), tmdbApiKey.value());
+    res.status(200).json({ suggestions });
+  } catch (error) {
+    console.error('Search films error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
