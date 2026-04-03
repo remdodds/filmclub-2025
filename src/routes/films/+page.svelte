@@ -23,23 +23,6 @@
   let showDropdown = false;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const suggestionsCache = new Map<string, FilmSuggestion[]>();
-  let inputEl: HTMLInputElement;
-  let dropdownTop = 0;
-  let dropdownLeft = 0;
-  let dropdownWidth = 0;
-
-  function repositionDropdown() {
-    if (showDropdown) updateDropdownPosition();
-  }
-
-  function updateDropdownPosition() {
-    if (inputEl) {
-      const rect = inputEl.getBoundingClientRect();
-      dropdownTop = rect.bottom + 4;
-      dropdownLeft = rect.left;
-      dropdownWidth = rect.width;
-    }
-  }
 
   function handleTitleInput() {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -55,10 +38,7 @@
     debounceTimer = setTimeout(async () => {
       if (suggestionsCache.has(query)) {
         suggestions = suggestionsCache.get(query)!;
-        if (suggestions.length > 0) {
-          updateDropdownPosition();
-          showDropdown = true;
-        }
+        showDropdown = suggestions.length > 0;
         return;
       }
 
@@ -67,12 +47,7 @@
         const result = await api.searchFilms(query);
         suggestionsCache.set(query, result.suggestions);
         suggestions = result.suggestions;
-        if (suggestions.length > 0) {
-          updateDropdownPosition();
-          showDropdown = true;
-        } else {
-          showDropdown = false;
-        }
+        showDropdown = suggestions.length > 0;
       } catch {
         suggestions = [];
         showDropdown = false;
@@ -166,7 +141,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutside} on:scroll={repositionDropdown} on:resize={repositionDropdown} />
+<svelte:window on:click={handleClickOutside} />
 
 <div class="films-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-5xl">
@@ -192,7 +167,7 @@
 
       <!-- Add Film Section -->
       <div in:fly={{ y: 20, duration: 600, delay: 100, easing: cubicOut }}>
-        <CinemaCard variant="velvet" className="mb-8">
+        <CinemaCard variant="velvet" className="mb-8 add-film-card">
           <form class="p-6" on:submit={handleAddFilm}>
             <label for="film-title" class="text-subtitle text-sm uppercase tracking-wider text-gold mb-3 block">
               Add Film
@@ -222,8 +197,8 @@
                 {/if}
                 {#if showDropdown && suggestions.length > 0}
                   <ul
-                    class="z-50 rounded-lg shadow-xl overflow-hidden"
-                    style="position: fixed; top: {dropdownTop}px; left: {dropdownLeft}px; width: {dropdownWidth}px; background: rgba(20, 20, 20, 0.98); border: 1px solid rgba(212, 175, 55, 0.3);"
+                    class="absolute z-50 w-full mt-1 rounded-lg shadow-xl overflow-hidden"
+                    style="background: rgba(20, 20, 20, 0.98); border: 1px solid rgba(212, 175, 55, 0.3);"
                   >
                     {#each suggestions as suggestion (suggestion.tmdbId)}
                       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -366,6 +341,12 @@
 
   .delete-btn {
     transition: opacity var(--timing-normal);
+  }
+
+  /* Allow the typeahead dropdown to overflow the card bounds.
+     Safe here: this card contains only form elements, nothing bleeds at the border-radius. */
+  :global(.cinema-card.add-film-card) {
+    overflow: visible;
   }
 
   :global(.input:focus) {
