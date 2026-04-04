@@ -10,10 +10,19 @@ When a film is nominated, the backend automatically fetches TMDB metadata (poste
 
 ---
 
-## Feature 2: Streaming Availability on the Winner Banner
+## Feature 2: Streaming Availability on Nominated Films
 
 ### Goal
-Show which UK streaming platforms the winning film is available on in the "Next Up" banner on the home page. No deep links — just service names.
+Show a single streaming platform logo on each nominated film card on the nominations page. Only one logo is shown per film, selected by priority. No deep links — just the logo.
+
+### Priority Order
+When multiple UK subscription services are available, pick the single highest-priority one to display:
+
+1. **Netflix** or **Disney+** (either counts as top tier — show whichever is present, Netflix first if both)
+2. **Amazon Prime Video** (if neither Netflix nor Disney+ is available)
+3. **Any other service** (if none of the above three are available — pick the first one returned)
+
+If no subscription services are available at all, show nothing (no badge, no placeholder text).
 
 ### APIs
 - **TMDB Watch Providers**: `GET https://api.themoviedb.org/3/movie/{tmdb_id}/watch/providers?api_key=<key>`
@@ -61,20 +70,25 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
 
 **`src/lib/api.ts`** — add `getStreamingAvailability(filmId: string)`
 
-**`src/routes/home/+page.svelte`** — in the "Next Up" winner banner:
-- After loading `lastWinner`, call `getStreamingAvailability(lastWinner.winner.filmId)`
-- Display service name badges below the winner title (with TMDB logo image if available)
-- Show "Not currently streaming" if array is empty
-- Loading state: skeleton placeholder while fetching
+**`src/routes/films/+page.svelte`** — nominations list:
+- For each film card, call `getStreamingAvailability(film.id)` (or batch-fetch on page load)
+- Apply priority logic to select a single service from the returned array:
+  1. Netflix (provider_name === "Netflix")
+  2. Disney+ (provider_name === "Disney Plus")
+  3. Amazon Prime Video (provider_name === "Amazon Prime Video")
+  4. First item in array (fallback)
+- Render the selected service's TMDB logo image (`https://image.tmdb.org/t/p/w45{logo_path}`) on the film card
+- Show nothing if the array is empty
 
-**`src/lib/components/StreamingBadges.svelte`** — new reusable component
+**`src/lib/components/StreamingLogo.svelte`** — new reusable component
 - Props: `services: StreamingService[]`
-- Renders pill badges for each service with logo + name
-- Can reuse on history page later
+- Internally applies the priority logic and renders a single `<img>` logo
+- Renders nothing if no services provided
 
 ### Testing
 - Unit test `getWatchProviders()` with mocked fetch responses
 - Test caching logic: cached result returned without API call when fresh
+- Test priority logic: Netflix wins over Disney+, Disney+ wins over Prime, Prime wins over others, fallback to first item, nothing rendered when empty
 - Test empty/error state handling
 
 ---
