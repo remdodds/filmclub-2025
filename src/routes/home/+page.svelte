@@ -115,7 +115,7 @@
                 style="color: var(--accent-gold);"
               />
               <h2 class="text-title mb-2">Nominated Films</h2>
-              <p class="text-small opacity-70">View and add films to the roster</p>
+              <p class="text-small opacity-70">View the current nominations roster</p>
             </div>
           </CinemaCard>
         </div>
