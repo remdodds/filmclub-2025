@@ -4,66 +4,9 @@ A backlog of planned features with enough detail to implement in isolated sessio
 
 ---
 
-## Feature 1: TMDB Film Metadata Enrichment
+## ~~Feature 1: TMDB Film Metadata Enrichment~~ ✓ Complete
 
-### Goal
-When a film is nominated, automatically look up its TMDB metadata (poster, synopsis, release year, TMDB ID) and store it alongside the film in Firestore.
-
-### APIs
-- **TMDB Search**: `GET https://api.themoviedb.org/3/search/movie?query=<title>&api_key=<key>`
-- **TMDB Images**: poster paths are relative — prefix with `https://image.tmdb.org/t/p/w500`
-- Free, non-commercial use. No rate-limit concerns at our scale.
-- API key: store in Firebase Functions config as `tmdb.api_key`
-
-### Data Model Changes
-
-Add optional metadata fields to the film document in Firestore and to the `Film` interface in both `src/lib/types.ts` and `functions/src/films/films.logic.ts`:
-
-```ts
-interface FilmMetadata {
-  tmdbId: number;
-  posterPath: string | null;   // e.g. "/abc123.jpg" — prepend TMDB image base URL
-  overview: string | null;
-  releaseYear: number | null;
-  fetchedAt: Date;
-}
-
-interface Film {
-  // ...existing fields...
-  metadata?: FilmMetadata;
-}
-```
-
-### Backend Changes
-
-**New file: `functions/src/tmdb/tmdb.ts`**
-- `searchFilm(title: string): Promise<FilmMetadata | null>`
-  - Calls TMDB search endpoint
-  - Takes the first result (best match)
-  - Returns null if no results or on error (non-blocking — nomination still succeeds)
-
-**Modify: `functions/src/api/films.ts` → `addFilm()`**
-- After saving the film to Firestore, call `searchFilm(title)` asynchronously
-- If metadata returned, update the Firestore doc with a `metadata` subcollection or merged fields
-- Failure to fetch metadata must NOT fail the nomination — catch and log only
-
-**Modify: `functions/src/api/films.ts` → `listFilms()`**
-- Include `metadata` fields when mapping Firestore docs to Film objects
-
-### Frontend Changes
-
-**`src/lib/types.ts`** — add `metadata?: FilmMetadata` to `Film` interface
-
-**`src/routes/films/+page.svelte`** — film list cards should show:
-- Poster thumbnail (if available) on the left
-- Synopsis snippet (truncated to ~100 chars) below the title
-- Release year next to the title
-
-**`src/routes/vote/+page.svelte`** — voting cards should show poster if available
-
-### Testing
-- Unit test `searchFilm()` with mocked fetch (happy path, no results, API error)
-- Ensure `addFilm` tests still pass when TMDB is unavailable (mock failure)
+When a film is nominated, the backend automatically fetches TMDB metadata (poster, synopsis, release year, TMDB ID) and stores it on the Firestore film document under `metadata`. Metadata fetch failures are non-blocking. The nominations and voting pages display poster thumbnails, release year, and a synopsis snippet.
 
 ---
 
