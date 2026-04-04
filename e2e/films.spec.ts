@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 test.describe('Nominated Films page', () => {
   test.beforeEach(async ({ page }) => {

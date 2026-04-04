@@ -1,0 +1,10 @@
+{
+  "isOpen": false,
+  "votingRound": null,
+  "candidates": [
+    { "id": "film-local-1", "title": "Inception" },
+    { "id": "film-local-2", "title": "The Matrix" }
+  ],
+  "ballots": [],
+  "totalBallots": 0
+}

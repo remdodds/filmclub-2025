@@ -1,0 +1,50 @@
+{
+  "history": [
+    {
+      "roundId": "round-local-0",
+      "openedAt": "2024-01-01T10:00:00.000Z",
+      "closedAt": "2024-01-08T10:00:00.000Z",
+      "totalBallots": 3,
+      "candidateCount": 2,
+      "winner": {
+        "filmId": "film-local-0",
+        "title": "The Godfather",
+        "nominatedBy": "Charlie"
+      },
+      "condorcetWinner": true,
+      "algorithm": "condorcet",
+      "rankings": [
+        {
+          "filmId": "film-local-0",
+          "title": "The Godfather",
+          "nominatedBy": "Charlie",
+          "rank": 1,
+          "totalScore": 9,
+          "averageScore": 3.0,
+          "pairwiseWins": 1,
+          "pairwiseLosses": 0
+        },
+        {
+          "filmId": "film-local-3",
+          "title": "Pulp Fiction",
+          "nominatedBy": "Dana",
+          "rank": 2,
+          "totalScore": 6,
+          "averageScore": 2.0,
+          "pairwiseWins": 0,
+          "pairwiseLosses": 1
+        }
+      ],
+      "pairwiseComparisons": [
+        {
+          "filmA": "The Godfather",
+          "filmB": "Pulp Fiction",
+          "filmAWins": 3,
+          "filmBWins": 0,
+          "ties": 0
+        }
+      ],
+      "archivedAt": "2024-01-08T10:00:00.000Z"
+    }
+  ]
+}

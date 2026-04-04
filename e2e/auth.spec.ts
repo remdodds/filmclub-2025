@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './support/fixtures';
 
 test.describe('Login page', () => {
   test('shows the Film Club title and sign-in prompt', async ({ page }) => {
