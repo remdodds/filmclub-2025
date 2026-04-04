@@ -78,18 +78,19 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
   3. Amazon Prime Video (provider_name === "Amazon Prime Video")
   4. First item in array (fallback)
 - Render the selected service's TMDB logo image (`https://image.tmdb.org/t/p/w45{logo_path}`) on the film card
-- Show nothing if the array is empty
+- Show a warning icon if the array is empty (film has no UK subscription streaming availability)
 
 **`src/lib/components/StreamingLogo.svelte`** — new reusable component
 - Props: `services: StreamingService[]`
 - Internally applies the priority logic and renders a single `<img>` logo
-- Renders nothing if no services provided
+- Renders a warning icon (e.g. `⚠`) if no services provided, to indicate the film is not currently available on any UK subscription platform
 
 ### Testing
 - Unit test `getWatchProviders()` with mocked fetch responses
 - Test caching logic: cached result returned without API call when fresh
-- Test priority logic: Netflix wins over Disney+, Disney+ wins over Prime, Prime wins over others, fallback to first item, nothing rendered when empty
-- Test empty/error state handling
+- Test priority logic: Netflix wins over Disney+, Disney+ wins over Prime, Prime wins over others, fallback to first item
+- Test empty state: warning icon rendered when services array is empty
+- Test error state handling
 
 ---
 
