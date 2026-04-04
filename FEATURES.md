@@ -4,66 +4,9 @@ A backlog of planned features with enough detail to implement in isolated sessio
 
 ---
 
-## Feature 1: TMDB Film Metadata Enrichment
+## ~~Feature 1: TMDB Film Metadata Enrichment~~ ✓ Complete
 
-### Goal
-When a film is nominated, automatically look up its TMDB metadata (poster, synopsis, release year, TMDB ID) and store it alongside the film in Firestore.
-
-### APIs
-- **TMDB Search**: `GET https://api.themoviedb.org/3/search/movie?query=<title>&api_key=<key>`
-- **TMDB Images**: poster paths are relative — prefix with `https://image.tmdb.org/t/p/w500`
-- Free, non-commercial use. No rate-limit concerns at our scale.
-- API key: store in Firebase Functions config as `tmdb.api_key`
-
-### Data Model Changes
-
-Add optional metadata fields to the film document in Firestore and to the `Film` interface in both `src/lib/types.ts` and `functions/src/films/films.logic.ts`:
-
-```ts
-interface FilmMetadata {
-  tmdbId: number;
-  posterPath: string | null;   // e.g. "/abc123.jpg" — prepend TMDB image base URL
-  overview: string | null;
-  releaseYear: number | null;
-  fetchedAt: Date;
-}
-
-interface Film {
-  // ...existing fields...
-  metadata?: FilmMetadata;
-}
-```
-
-### Backend Changes
-
-**New file: `functions/src/tmdb/tmdb.ts`**
-- `searchFilm(title: string): Promise<FilmMetadata | null>`
-  - Calls TMDB search endpoint
-  - Takes the first result (best match)
-  - Returns null if no results or on error (non-blocking — nomination still succeeds)
-
-**Modify: `functions/src/api/films.ts` → `addFilm()`**
-- After saving the film to Firestore, call `searchFilm(title)` asynchronously
-- If metadata returned, update the Firestore doc with a `metadata` subcollection or merged fields
-- Failure to fetch metadata must NOT fail the nomination — catch and log only
-
-**Modify: `functions/src/api/films.ts` → `listFilms()`**
-- Include `metadata` fields when mapping Firestore docs to Film objects
-
-### Frontend Changes
-
-**`src/lib/types.ts`** — add `metadata?: FilmMetadata` to `Film` interface
-
-**`src/routes/films/+page.svelte`** — film list cards should show:
-- Poster thumbnail (if available) on the left
-- Synopsis snippet (truncated to ~100 chars) below the title
-- Release year next to the title
-
-**`src/routes/vote/+page.svelte`** — voting cards should show poster if available
-
-### Testing
-- Unit test `searchFilm()` with mocked fetch (happy path, no results, API error)
-- Ensure `addFilm` tests still pass when TMDB is unavailable (mock failure)
+When a film is nominated, the backend automatically fetches TMDB metadata (poster, synopsis, release year, TMDB ID) and stores it on the Firestore film document under `metadata`. Metadata fetch failures are non-blocking. The nominations and voting pages display poster thumbnails, release year, and a synopsis snippet.
 
 ---
 
@@ -133,6 +76,57 @@ Only re-fetch if `fetchedAt` is more than 7 days old.
 - Unit test `getWatchProviders()` with mocked fetch responses
 - Test caching logic: cached result returned without API call when fresh
 - Test empty/error state handling
+
+---
+
+## Feature 3: Nomination Pitch Field
+
+### Goal
+When nominating a film, members can write a short personal pitch for why the club should watch it. This pitch is displayed beneath the TMDB synopsis on the nominations page, giving each nomination a personal touch alongside the objective metadata.
+
+### Data Model Changes
+
+Add an optional `pitch` field to the `Film` interface in `src/lib/types.ts` and `functions/src/films/films.logic.ts`:
+
+```ts
+interface Film {
+  // ...existing fields...
+  pitch?: string;   // free-text, max ~500 chars, written by the nominator
+}
+```
+
+Store directly on the Firestore film document alongside `title`, `nominatedBy`, etc.
+
+### Backend Changes
+
+**Modify: `functions/src/api/films.ts` → `addFilm()`**
+- Accept optional `pitch` string in the request body
+- Validate: strip leading/trailing whitespace; enforce max length of 500 characters (return 400 if exceeded)
+- Save `pitch` on the Firestore document (omit field entirely if empty/absent — no empty strings)
+
+**Modify: `functions/src/api/films.ts` → `listFilms()`**
+- Include `pitch` when mapping Firestore docs to Film objects
+
+### Frontend Changes
+
+**`src/lib/types.ts`** — add `pitch?: string` to `Film` interface
+
+**`src/routes/films/nominate/+page.svelte`** — nomination form:
+- Add an optional `<textarea>` labelled "Why should we watch this?" below the film search/title field
+- Placeholder: e.g. _"Tell the club why this film is worth watching…"_
+- Character counter showing remaining chars out of 500
+- Submit the `pitch` value alongside the film data
+
+**`src/routes/films/+page.svelte`** — nominations list:
+- If `film.pitch` is present, render it beneath `film.metadata.overview` (the TMDB synopsis)
+- Style to visually distinguish it from the synopsis — e.g. italic text with a small label like "Why watch it?" or the nominator's name as attribution
+
+**`src/lib/api.ts`** — update `addFilm()` call to pass `pitch` in the request payload
+
+### Testing
+- Unit test `addFilm()`: pitch saved when provided, omitted when absent, 400 returned when > 500 chars
+- Frontend: textarea renders, character counter updates, pitch submitted in payload
+- Nominations page: pitch shown beneath synopsis when present, nothing rendered when absent
 
 ---
 
