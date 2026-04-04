@@ -6,6 +6,7 @@
 2. **Maintain code coverage.** Coverage must not decrease. Run coverage checks before committing. If a change would reduce coverage, add the missing tests first.
 3. **Follow Red-Green-Refactor strictly.** Red → Green → Refactor, in that order, every time.
 4. **Always use both agents for any coding task.** Use the TDD agent to implement changes and the Code Review agent to verify the result. See [Required Agents](#required-agents) below.
+5. **Keep E2E tests in sync with frontend changes.** Any change to a page — heading text, button labels, placeholders, URLs, empty-state copy, nav cards — requires updating the corresponding Playwright spec in `e2e/` in the same commit. See [E2E_TESTING.md](./E2E_TESTING.md) for the full spec map and rules.
 
 ---
 
@@ -211,7 +212,8 @@ filmclub-2025/
 │       ├── +layout.svelte        # App shell
 │       ├── +page.svelte          # Login
 │       ├── home/+page.svelte
-│       ├── films/+page.svelte    # Nomination
+│       ├── films/+page.svelte         # Nominated films list
+│       ├── films/nominate/+page.svelte # Search & nominate a film
 │       ├── vote/+page.svelte     # Voting interface
 │       ├── history/+page.svelte
 │       └── admin/+page.svelte
@@ -240,11 +242,21 @@ filmclub-2025/
 │       ├── openVoting.ts / openVoting.test.ts
 │       └── closeVoting.ts / closeVoting.test.ts
 │
+├── e2e/                          # Playwright E2E tests
+│   ├── global-setup.ts           # Auth setup (runs once before all specs)
+│   ├── auth.spec.ts
+│   ├── home.spec.ts
+│   ├── films.spec.ts             # Covers /films and /films/nominate
+│   ├── vote.spec.ts
+│   ├── history.spec.ts
+│   └── admin.spec.ts
+│
 ├── .claude/
 │   └── agents/
 │       ├── tdd.md                # TDD implementation agent
 │       └── code-review.md        # Standards + requirements review agent
 │
+├── E2E_TESTING.md                # E2E test rules, spec map, selector patterns
 ├── firebase.json
 ├── firestore.rules               # All writes blocked client-side; Functions only
 ├── firestore.indexes.json
@@ -341,12 +353,15 @@ npm test -- auth.test.ts      # Run specific test file
 
 #### Frontend (SvelteKit)
 
-**Test Framework**: Vitest + Svelte Testing Library
+**Test Framework**: Playwright (E2E only — there are no component unit tests)
+
+See [E2E_TESTING.md](./E2E_TESTING.md) for full details: spec files, selectors, auth setup, and the rule for keeping tests in sync with page changes.
 
 **Running Tests**:
 ```bash
-npm test                      # Run all tests
-npm run test:coverage         # Coverage report
+npx playwright test                        # Run all E2E tests
+npx playwright test e2e/films.spec.ts      # Run one spec
+npx playwright test --ui                   # Headed/step-through mode
 ```
 
 ### TDD Workflow for This Project

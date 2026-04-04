@@ -115,7 +115,30 @@
                 style="color: var(--accent-gold);"
               />
               <h2 class="text-title mb-2">Nominated Films</h2>
-              <p class="text-small opacity-70">View and add films to the roster</p>
+              <p class="text-small opacity-70">View the current nominations roster</p>
+            </div>
+          </CinemaCard>
+        </div>
+
+        <!-- Nominate a Film Card -->
+        <div
+          class="stagger-item"
+          style="animation-delay: 150ms;"
+          in:fly={{ y: 30, duration: 600, delay: 250, easing: cubicOut }}
+        >
+          <CinemaCard
+            variant="poster"
+            clickable={true}
+            on:click={() => navigateTo('/films/nominate')}
+          >
+            <div class="p-8 text-center">
+              <Icon
+                icon="mdi:ticket-confirmation"
+                class="w-16 h-16 mx-auto mb-4"
+                style="color: var(--accent-gold);"
+              />
+              <h2 class="text-title mb-2">Nominate a Film</h2>
+              <p class="text-small opacity-70">Search and add films to the roster</p>
             </div>
           </CinemaCard>
         </div>
