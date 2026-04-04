@@ -11,6 +11,7 @@ test.describe('Home page', () => {
 
   test('shows all navigation cards', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Nominated Films' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nominate a Film' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cast Your Vote' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Past Premieres' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
@@ -20,6 +21,11 @@ test.describe('Home page', () => {
   test('navigates to films page', async ({ page }) => {
     await page.getByRole('heading', { name: 'Nominated Films' }).click();
     await expect(page).toHaveURL('/films');
+  });
+
+  test('navigates to nominate a film page', async ({ page }) => {
+    await page.getByRole('heading', { name: 'Nominate a Film' }).click();
+    await expect(page).toHaveURL('/films/nominate');
   });
 
   test('navigates to vote page', async ({ page }) => {
