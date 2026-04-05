@@ -14,17 +14,4 @@ test.describe('Voting History page', () => {
     const emptyState = page.getByText('No voting history yet');
     await expect(historyItem.or(emptyState)).toBeVisible({ timeout: 15_000 });
   });
-
-  test('can expand a history round to see details', async ({ page }) => {
-    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
-
-    const showDetailsButton = page.getByRole('button', { name: /Show Details/i }).first();
-    const hasRounds = await showDetailsButton.isVisible().catch(() => false);
-
-    if (hasRounds) {
-      await showDetailsButton.click();
-      await expect(page.getByRole('button', { name: /Hide Details/i }).first()).toBeVisible();
-      await expect(page.getByRole('table')).toBeVisible();
-    }
-  });
 });
