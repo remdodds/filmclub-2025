@@ -181,6 +181,10 @@ describe('closeVotingRound', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   // -------------------------------------------------------------------------
   // Guard: no open round
   // -------------------------------------------------------------------------
@@ -303,10 +307,11 @@ describe('closeVotingRound', () => {
     );
   });
 
-  it('does NOT try to update films when there is no winner (null result)', async () => {
-    // Arrange
+  it('does NOT try to update films when there is no winner and no candidates', async () => {
+    // Arrange – algorithm returns null and there are no nominated films
     const { mockFilmUpdate, mockFilmGet } = wireMocks({
-      algorithmResults: makeResults(null),
+      algorithmResults: makeResults(null, { totalBallots: 0 }),
+      filmDocs: [],
     });
 
     // Act
@@ -316,6 +321,71 @@ describe('closeVotingRound', () => {
     expect(mockFilmGet).not.toHaveBeenCalled();
     expect(mockFilmUpdate).not.toHaveBeenCalled();
     expect(mockMarkFilmAsWatched).not.toHaveBeenCalled();
+  });
+
+  it('picks a random winner when no votes were cast but candidates exist', async () => {
+    // Arrange – algorithm returns null winner (zero ballots) but films are nominated
+    jest.spyOn(Math, 'random').mockReturnValue(0); // will select index 0
+    const filmDocs = [
+      makeFilmDoc('film-1', 'The Matrix', 'visitor-1'),
+      makeFilmDoc('film-2', 'Inception', 'visitor-2'),
+    ];
+    const { mockFilmUpdate, mockRoundUpdate } = wireMocks({
+      algorithmResults: makeResults(null, { totalBallots: 0 }),
+      filmDocs,
+      winningFilmDoc: {
+        exists: true,
+        id: 'film-1',
+        data: () => ({
+          title: 'The Matrix',
+          addedBy: 'visitor-1',
+          addedAt: makeTimestamp(new Date('2026-01-01')),
+          status: 'nominated',
+        }),
+      },
+    });
+
+    // Act
+    await closeVotingRound();
+
+    // Assert – the randomly selected film was marked as watched
+    expect(mockFilmUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'watched', watchedAt: expect.any(Date) })
+    );
+    expect(mockRoundUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ winner: 'film-1' })
+    );
+  });
+
+  it('uses Math.random to select among candidates when no votes cast', async () => {
+    // Arrange – pick second film (index 1 of 2)
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // Math.floor(0.5 * 2) = 1
+    const filmDocs = [
+      makeFilmDoc('film-1', 'The Matrix', 'visitor-1'),
+      makeFilmDoc('film-2', 'Inception', 'visitor-2'),
+    ];
+    const { mockRoundUpdate } = wireMocks({
+      algorithmResults: makeResults(null, { totalBallots: 0 }),
+      filmDocs,
+      winningFilmDoc: {
+        exists: true,
+        id: 'film-2',
+        data: () => ({
+          title: 'Inception',
+          addedBy: 'visitor-2',
+          addedAt: makeTimestamp(new Date('2026-01-01')),
+          status: 'nominated',
+        }),
+      },
+    });
+
+    // Act
+    await closeVotingRound();
+
+    // Assert – second film was selected
+    expect(mockRoundUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ winner: 'film-2' })
+    );
   });
 
   it('does NOT update the winning film when its Firestore document does not exist', async () => {
