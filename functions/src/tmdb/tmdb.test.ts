@@ -2,7 +2,7 @@
  * TMDB Film Metadata Tests
  */
 
-import { searchFilm, searchFilmSuggestions } from './tmdb';
+import { searchFilm, searchFilmSuggestions, getWatchProviders } from './tmdb';
 
 const FAKE_API_KEY = 'test-api-key-123';
 
@@ -278,5 +278,124 @@ describe('searchFilmSuggestions', () => {
 
     // Assert
     expect(suggestions[0].releaseYear).toBeNull();
+  });
+});
+
+describe('getWatchProviders', () => {
+  let fetchSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(global, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('calls the TMDB watch providers endpoint with the correct URL', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { GB: { flatrate: [] } } }),
+    } as Response);
+
+    // Act
+    await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `https://api.themoviedb.org/3/movie/603/watch/providers?api_key=${FAKE_API_KEY}`
+    );
+  });
+
+  it('returns mapped StreamingService array from GB flatrate providers', async () => {
+    // Arrange
+    const mockProviders = [
+      { provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' },
+      { provider_id: 337, provider_name: 'Disney Plus', logo_path: '/disney.jpg' },
+    ];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { GB: { flatrate: mockProviders } } }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' });
+    expect(result[1]).toEqual({ provider_id: 337, provider_name: 'Disney Plus', logo_path: '/disney.jpg' });
+  });
+
+  it('uses a custom country code when provided', async () => {
+    // Arrange
+    const mockProviders = [
+      { provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' },
+    ];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { US: { flatrate: mockProviders } } }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY, 'US');
+
+    // Assert
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns empty array when country has no flatrate providers', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { GB: { rent: [] } } }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when country is not in results', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: {} }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array on non-OK API status', async () => {
+    // Arrange
+    fetchSpy.mockResolvedValue({ ok: false, status: 401 } as Response);
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns empty array on fetch network failure', async () => {
+    // Arrange
+    fetchSpy.mockRejectedValue(new Error('Network error'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toEqual([]);
+    consoleErrorSpy.mockRestore();
   });
 });

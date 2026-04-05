@@ -1,4 +1,4 @@
-import type { FilmSuggestion } from '$lib/types';
+import type { FilmSuggestion, StreamingService } from '$lib/types';
 
 const API_BASE = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
 
@@ -78,6 +78,13 @@ export const api = {
 
   async getHistory() {
     const res = await fetch(`${API_BASE}/films/history`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse(res);
+  },
+
+  async getStreamingAvailability(filmId: string): Promise<{ services: StreamingService[] }> {
+    const res = await fetch(`${API_BASE}/films/${filmId}/streaming`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
     return handleResponse(res);

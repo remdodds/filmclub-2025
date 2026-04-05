@@ -13,7 +13,7 @@ import {
   sortFilmsByDate,
   Film,
 } from '../films/films.logic';
-import { searchFilm, searchFilmSuggestions, tmdbApiKey } from '../tmdb/tmdb';
+import { searchFilm, searchFilmSuggestions, getWatchProviders, tmdbApiKey } from '../tmdb/tmdb';
 
 /**
  * GET /films
@@ -209,6 +209,64 @@ export async function searchFilms(req: Request, res: Response): Promise<void> {
     res.status(200).json({ suggestions });
   } catch (error) {
     console.error('Search films error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /films/:id/streaming
+ * Get UK streaming availability for a nominated film.
+ * Results are cached on the film document for 7 days.
+ *
+ * Response:
+ * {
+ *   services: StreamingService[]
+ * }
+ */
+export async function getStreamingAvailability(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const docRef = db.collection('films').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      res.status(404).json({ error: 'Film not found' });
+      return;
+    }
+
+    const data = doc.data()!;
+
+    // Return cached result if it's less than 7 days old
+    if (data.streamingAvailability) {
+      const fetchedAt: Date = data.streamingAvailability.fetchedAt.toDate();
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      if (fetchedAt > sevenDaysAgo) {
+        res.status(200).json({ services: data.streamingAvailability.services });
+        return;
+      }
+    }
+
+    // Need tmdbId to fetch from TMDB
+    const tmdbId = data.metadata?.tmdbId;
+    if (!tmdbId) {
+      res.status(200).json({ services: [] });
+      return;
+    }
+
+    const services = await getWatchProviders(tmdbId, tmdbApiKey.value());
+
+    await docRef.update({
+      streamingAvailability: {
+        services,
+        fetchedAt: new Date(),
+        country: 'GB',
+      },
+    });
+
+    res.status(200).json({ services });
+  } catch (error) {
+    console.error('Get streaming availability error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -85,10 +85,11 @@ app.post('/auth/logout', authMiddleware, authApi.logout);
 app.get('/auth/check', authMiddleware, authApi.checkSession);
 
 app.get('/films/search', authMiddleware, filmsApi.searchFilms);
+app.get('/films/history', authMiddleware, filmsApi.getHistory);
+app.get('/films/:id/streaming', authMiddleware, filmsApi.getStreamingAvailability);
 app.get('/films', authMiddleware, filmsApi.listFilms);
 app.post('/films', authMiddleware, filmsApi.addFilm);
 app.delete('/films/:id', authMiddleware, filmsApi.deleteFilm);
-app.get('/films/history', authMiddleware, filmsApi.getHistory);
 
 app.get('/votes/current', authMiddleware, votesApi.getCurrentVoting);
 app.post('/votes', authMiddleware, votesApi.submitVote);

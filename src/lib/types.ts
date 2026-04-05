@@ -1,3 +1,9 @@
+export interface StreamingService {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+}
+
 export interface FilmSuggestion {
   tmdbId: number;
   title: string;
@@ -23,6 +29,11 @@ export interface Film {
     overview: string | null;
     releaseYear: number | null;
     fetchedAt: string | Date;
+  };
+  streamingAvailability?: {
+    services: StreamingService[];
+    fetchedAt: string | Date;
+    country: string;
   };
 }
 
