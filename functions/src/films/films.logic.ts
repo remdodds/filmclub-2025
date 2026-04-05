@@ -4,7 +4,7 @@
  * Pure business logic for film management
  */
 
-import { FilmMetadata } from '../tmdb/tmdb';
+import { FilmMetadata, StreamingService } from '../tmdb/tmdb';
 
 /**
  * Film data structure
@@ -17,6 +17,11 @@ export interface Film {
   status: 'nominated' | 'watched';
   watchedAt?: Date;
   metadata?: FilmMetadata;
+  streamingAvailability?: {
+    services: StreamingService[];
+    fetchedAt: Date;
+    country: string;
+  };
 }
 
 /**

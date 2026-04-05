@@ -24,6 +24,12 @@ export interface FilmMetadata {
   fetchedAt: Date;
 }
 
+export interface StreamingService {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+}
+
 /**
  * Search for a film on TMDB by title.
  * Returns the first result mapped to FilmMetadata, or null if not found or on any error.
@@ -60,6 +66,46 @@ export async function searchFilm(title: string, apiKey: string): Promise<FilmMet
   } catch (err) {
     console.error('TMDB searchFilm error:', err);
     return null;
+  }
+}
+
+/**
+ * Get UK streaming providers (flatrate/subscription) for a film by TMDB ID.
+ * Returns [] on any error or if no providers found (non-blocking).
+ *
+ * @param tmdbId - TMDB movie ID
+ * @param apiKey - TMDB API key (passed as parameter to allow testing without secret)
+ * @param country - ISO 3166-1 country code (default: 'GB')
+ */
+export async function getWatchProviders(
+  tmdbId: number,
+  apiKey: string,
+  country = 'GB'
+): Promise<StreamingService[]> {
+  try {
+    const url = `https://api.themoviedb.org/3/movie/${tmdbId}/watch/providers?api_key=${apiKey}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`TMDB watch providers API returned non-OK status: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const flatrate = data.results?.[country]?.flatrate;
+
+    if (!flatrate || !Array.isArray(flatrate) || flatrate.length === 0) {
+      return [];
+    }
+
+    return flatrate.map((provider: any) => ({
+      provider_id: provider.provider_id,
+      provider_name: provider.provider_name,
+      logo_path: provider.logo_path,
+    }));
+  } catch (err) {
+    console.error('TMDB getWatchProviders error:', err);
+    return [];
   }
 }
 

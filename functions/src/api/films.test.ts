@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import { listFilms, addFilm, deleteFilm, getHistory, searchFilms } from './films';
+import { listFilms, addFilm, deleteFilm, getHistory, searchFilms, getStreamingAvailability } from './films';
 import { db } from '../utils/db';
 import {
   validateFilmTitle,
@@ -19,6 +19,7 @@ jest.mock('../films/films.logic');
 jest.mock('../tmdb/tmdb', () => ({
   searchFilm: jest.fn().mockResolvedValue(null),
   searchFilmSuggestions: jest.fn().mockResolvedValue([]),
+  getWatchProviders: jest.fn().mockResolvedValue([]),
   tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 
@@ -33,6 +34,7 @@ describe('Films API', () => {
   let mockWhere: jest.Mock;
   let mockSet: jest.Mock;
   let mockDelete: jest.Mock;
+  let mockUpdate: jest.Mock;
   let mockDocGet: jest.Mock;
   let mockDoc: jest.Mock;
 
@@ -52,11 +54,13 @@ describe('Films API', () => {
     mockWhere = jest.fn().mockReturnThis();
     mockSet = jest.fn().mockResolvedValue(undefined);
     mockDelete = jest.fn().mockResolvedValue(undefined);
+    mockUpdate = jest.fn().mockResolvedValue(undefined);
     mockDocGet = jest.fn();
     mockDoc = jest.fn().mockReturnValue({
       get: mockDocGet,
       set: mockSet,
       delete: mockDelete,
+      update: mockUpdate,
     });
 
     (db.collection as jest.Mock).mockReturnValue({
@@ -693,6 +697,117 @@ describe('Films API', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await searchFilms(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getStreamingAvailability
+  // ---------------------------------------------------------------------------
+
+  describe('getStreamingAvailability', () => {
+    beforeEach(() => {
+      mockRequest = { params: { id: 'film-123' } } as any;
+    });
+
+    it('returns 404 when the film does not exist', async () => {
+      mockDocGet.mockResolvedValue({ exists: false });
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Film not found' });
+    });
+
+    it('returns cached services without calling TMDB when cache is fresh (< 7 days)', async () => {
+      const recentDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // 1 day ago
+      const cachedServices = [{ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' }];
+      mockDocGet.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          streamingAvailability: {
+            services: cachedServices,
+            fetchedAt: { toDate: () => recentDate },
+            country: 'GB',
+          },
+        }),
+      });
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
+
+      expect(tmdb.getWatchProviders).not.toHaveBeenCalled();
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({ services: cachedServices });
+    });
+
+    it('re-fetches from TMDB when cached data is stale (> 7 days)', async () => {
+      const staleDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
+      const freshServices = [{ provider_id: 337, provider_name: 'Disney Plus', logo_path: '/disney.jpg' }];
+      mockDocGet.mockResolvedValue({
+        exists: true,
+        data: () => ({
+          metadata: { tmdbId: 603 },
+          streamingAvailability: {
+            services: [],
+            fetchedAt: { toDate: () => staleDate },
+            country: 'GB',
+          },
+        }),
+      });
+      (tmdb.getWatchProviders as jest.Mock).mockResolvedValue(freshServices);
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
+
+      expect(tmdb.getWatchProviders).toHaveBeenCalledWith(603, 'mock-api-key');
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({ services: freshServices });
+    });
+
+    it('returns empty services and skips TMDB call when film has no tmdbId', async () => {
+      mockDocGet.mockResolvedValue({
+        exists: true,
+        data: () => ({ title: 'Some Film' }), // no metadata
+      });
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
+
+      expect(tmdb.getWatchProviders).not.toHaveBeenCalled();
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({ services: [] });
+    });
+
+    it('fetches from TMDB and saves to Firestore when no cache exists', async () => {
+      const services = [{ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' }];
+      mockDocGet.mockResolvedValue({
+        exists: true,
+        data: () => ({ metadata: { tmdbId: 603 } }),
+      });
+      (tmdb.getWatchProviders as jest.Mock).mockResolvedValue(services);
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
+
+      expect(tmdb.getWatchProviders).toHaveBeenCalledWith(603, 'mock-api-key');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          streamingAvailability: expect.objectContaining({
+            services,
+            country: 'GB',
+          }),
+        })
+      );
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({ services });
+    });
+
+    it('returns 500 on unexpected error', async () => {
+      mockDocGet.mockRejectedValue(new Error('DB failure'));
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await getStreamingAvailability(mockRequest as Request, mockResponse as Response);
 
       expect(mockStatus).toHaveBeenCalledWith(500);
       expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });

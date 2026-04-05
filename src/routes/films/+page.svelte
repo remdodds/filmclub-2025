@@ -9,12 +9,16 @@
   import Icon from '@iconify/svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
+  import StreamingLogo from '$lib/components/StreamingLogo.svelte';
   import { toast } from 'svelte-sonner';
+  import type { StreamingService } from '$lib/types';
 
   let films: Film[] = [];
   let loading = true;
   let deletingId: string | null = null;
   let mounted = false;
+  // undefined = loading, StreamingService[] = result (may be empty)
+  let streamingMap: Record<string, StreamingService[] | undefined> = {};
 
   onMount(async () => {
     auth.init();
@@ -35,10 +39,20 @@
     try {
       const data = await api.getFilms();
       films = data.films;
+      loadStreamingAvailability(films.map(f => f.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load films');
     } finally {
       loading = false;
+    }
+  }
+
+  function loadStreamingAvailability(filmIds: string[]) {
+    streamingMap = {};
+    for (const id of filmIds) {
+      api.getStreamingAvailability(id)
+        .then(data => { streamingMap = { ...streamingMap, [id]: data.services }; })
+        .catch(() => { streamingMap = { ...streamingMap, [id]: [] }; });
     }
   }
 
@@ -142,9 +156,12 @@
                       />
                     {/if}
                     <div class="flex-1 min-w-0">
-                      <h3 class="text-lg font-bold leading-tight break-words">
-                        {film.title}{#if film.metadata?.releaseYear}&nbsp;<span class="text-sm font-normal opacity-60">({film.metadata.releaseYear})</span>{/if}
-                      </h3>
+                      <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-bold leading-tight break-words flex-1">
+                          {film.title}{#if film.metadata?.releaseYear}&nbsp;<span class="text-sm font-normal opacity-60">({film.metadata.releaseYear})</span>{/if}
+                        </h3>
+                        <StreamingLogo services={streamingMap[film.id]} />
+                      </div>
                       {#if film.metadata?.overview}
                         <p class="text-xs opacity-60 mt-1 leading-snug">{film.metadata.overview.slice(0, 100)}{film.metadata.overview.length > 100 ? '…' : ''}</p>
                       {/if}
