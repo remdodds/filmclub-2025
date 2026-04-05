@@ -3,6 +3,11 @@ import { test, expect } from './support/fixtures';
 test.describe('Admin panel', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin');
+    // Wait for the page to be interactive: the Refresh button only becomes
+    // enabled once the admin/votes API call completes, which also ensures
+    // SvelteKit's client-side router has fully initialised before any test
+    // interacts with the page.
+    await page.getByRole('button', { name: 'Refresh' }).waitFor({ timeout: 10_000 }).catch(() => {});
   });
 
   test('renders the Admin Panel heading', async ({ page }) => {

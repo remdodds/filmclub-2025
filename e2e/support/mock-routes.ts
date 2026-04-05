@@ -1,35 +1,42 @@
 import type { Page } from '@playwright/test';
+import { createRequire } from 'module';
 
-import authCheckFixture from '../fixtures/auth-check.json';
-import filmsFixture from '../fixtures/films.json';
-import filmsSearchFixture from '../fixtures/films-search.json';
-import filmsHistoryFixture from '../fixtures/films-history.json';
-import votesCurrentFixture from '../fixtures/votes-current.json';
-import historyFixture from '../fixtures/history.json';
-import adminVotesFixture from '../fixtures/admin-votes.json';
+// JSON imports in Node.js 22 ESM require an import attribute (with { type: 'json' }),
+// which not all versions of esbuild/ts-node handle.  createRequire is the reliable
+// cross-version alternative.
+const require = createRequire(import.meta.url);
 
-const API = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
+const authCheckFixture = require('../fixtures/auth-check.json');
+const filmsFixture = require('../fixtures/films.json');
+const filmsSearchFixture = require('../fixtures/films-search.json');
+const filmsHistoryFixture = require('../fixtures/films-history.json');
+const votesCurrentFixture = require('../fixtures/votes-current.json');
+const historyFixture = require('../fixtures/history.json');
+const adminVotesFixture = require('../fixtures/admin-votes.json');
 
 /**
  * Installs page.route() interceptors for every backend endpoint the app calls.
- * Register more-specific patterns first — Playwright matches routes in
- * registration order (first match wins).
+ *
+ * Patterns use the glob form "**\/api/<path>" rather than the full Cloud Functions hostname so
+ * that Playwright's glob engine matches reliably.  Register more-specific
+ * patterns first — Playwright evaluates routes in registration order and the
+ * first match wins.
  */
 export async function installMockRoutes(page: Page): Promise<void> {
   // ── Films ────────────────────────────────────────────────────────────────
   // /films/search?q=* — must come before /films/* and /films
-  await page.route(`${API}/films/search**`, (route) =>
+  await page.route('**/api/films/search**', (route) =>
     route.fulfill({ json: filmsSearchFixture })
   );
 
   // /films/history — must come before /films/* (single-segment wildcard
   // would otherwise catch it first)
-  await page.route(`${API}/films/history`, (route) =>
+  await page.route('**/api/films/history', (route) =>
     route.fulfill({ json: filmsHistoryFixture })
   );
 
   // /films/:id  (GET detail, DELETE)
-  await page.route(`${API}/films/*`, async (route) => {
+  await page.route('**/api/films/*', async (route) => {
     if (route.request().method() === 'DELETE') {
       await route.fulfill({ status: 200, json: { message: 'Film deleted' } });
     } else {
@@ -38,7 +45,7 @@ export async function installMockRoutes(page: Page): Promise<void> {
   });
 
   // /films  (GET list, POST new)
-  await page.route(`${API}/films`, async (route) => {
+  await page.route('**/api/films', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ status: 201, json: { message: 'Film added' } });
     } else {
@@ -48,17 +55,17 @@ export async function installMockRoutes(page: Page): Promise<void> {
 
   // ── Votes ────────────────────────────────────────────────────────────────
   // /votes/current — must come before /votes
-  await page.route(`${API}/votes/current`, (route) =>
+  await page.route('**/api/votes/current', (route) =>
     route.fulfill({ json: votesCurrentFixture })
   );
 
   // /votes/results/latest — must come before /votes
-  await page.route(`${API}/votes/results/latest`, (route) =>
+  await page.route('**/api/votes/results/latest', (route) =>
     route.fulfill({ json: { results: [] } })
   );
 
   // /votes  (POST ballot)
-  await page.route(`${API}/votes`, async (route) => {
+  await page.route('**/api/votes', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ json: { message: 'Ballot submitted' } });
     } else {
@@ -67,37 +74,62 @@ export async function installMockRoutes(page: Page): Promise<void> {
   });
 
   // ── History ──────────────────────────────────────────────────────────────
-  await page.route(`${API}/history**`, (route) =>
+  await page.route('**/api/history**', (route) =>
     route.fulfill({ json: historyFixture })
   );
 
   // ── Admin ────────────────────────────────────────────────────────────────
-  // /admin/votes — must come before /admin/**
-  await page.route(`${API}/admin/votes`, (route) =>
-    route.fulfill({ json: adminVotesFixture })
-  );
-
-  // /admin/open-round, /admin/select-winner
-  await page.route(`${API}/admin/**`, async (route) => {
-    if (route.request().method() === 'POST') {
+  // Single handler for all /admin/* routes — dispatch by URL so the
+  // more-specific /admin/votes case is never accidentally continued.
+  await page.route('**/api/admin/**', async (route) => {
+    const url = route.request().url();
+    if (url.includes('/admin/votes')) {
+      await route.fulfill({ json: adminVotesFixture });
+    } else if (route.request().method() === 'POST') {
       await route.fulfill({ json: { message: 'ok' } });
     } else {
-      await route.continue();
+      await route.fulfill({ json: { message: 'ok' } });
     }
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   // /auth/check — must come before /auth/**
-  await page.route(`${API}/auth/check`, (route) =>
+  await page.route('**/api/auth/check', (route) =>
     route.fulfill({ json: authCheckFixture })
   );
 
   // /auth/logout, /auth/google
-  await page.route(`${API}/auth/**`, async (route) => {
+  await page.route('**/api/auth/**', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ json: { message: 'ok' } });
     } else {
       await route.continue();
     }
   });
+
+  // ── External resources that block page load without internet access ───────
+  // Google Fonts: the CSS @import is render-blocking; return empty CSS so the
+  // load event fires immediately.
+  await page.route('**/fonts.googleapis.com/**', (route) =>
+    route.fulfill({ contentType: 'text/css', body: '' })
+  );
+  await page.route('**/fonts.gstatic.com/**', (route) =>
+    route.fulfill({ contentType: 'font/woff2', body: '' })
+  );
+
+  // Firebase Auth: injects a hidden <iframe> to *.firebaseapp.com for
+  // cross-origin persistence.  Without network access the iframe hangs and
+  // also blocks the load event.
+  await page.route('**firebaseapp.com**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' })
+  );
+  await page.route('**/identitytoolkit.googleapis.com/**', (route) =>
+    route.fulfill({ contentType: 'application/json', body: '{}' })
+  );
+  await page.route('**/securetoken.googleapis.com/**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ access_token: 'fake', expires_in: 3600, token_type: 'Bearer' }),
+    })
+  );
 }
