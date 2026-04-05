@@ -1,0 +1,22 @@
+{
+  "suggestions": [
+    {
+      "tmdbId": 27205,
+      "title": "Inception",
+      "releaseYear": 2010,
+      "posterPath": "/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg"
+    },
+    {
+      "tmdbId": 157336,
+      "title": "Interstellar",
+      "releaseYear": 2014,
+      "posterPath": "/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg"
+    },
+    {
+      "tmdbId": 8587,
+      "title": "The Lion King",
+      "releaseYear": 1994,
+      "posterPath": "/sIyr3NZ3EWdmVXLDshGPaOlAORZ.jpg"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "films": [
+    {
+      "id": "film-local-1",
+      "title": "Inception",
+      "nominatedBy": "Alice",
+      "addedAt": "2024-01-15T10:00:00.000Z",
+      "status": "nominated",
+      "metadata": {
+        "tmdbId": 27205,
+        "posterPath": "/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
+        "overview": "A thief who steals corporate secrets through dream-sharing technology.",
+        "releaseYear": 2010,
+        "fetchedAt": "2024-01-15T10:00:00.000Z"
+      }
+    },
+    {
+      "id": "film-local-2",
+      "title": "The Matrix",
+      "nominatedBy": "Bob",
+      "addedAt": "2024-01-16T10:00:00.000Z",
+      "status": "nominated",
+      "metadata": {
+        "tmdbId": 603,
+        "posterPath": "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+        "overview": "A computer hacker learns about the true nature of his reality.",
+        "releaseYear": 1999,
+        "fetchedAt": "2024-01-16T10:00:00.000Z"
+      }
+    }
+  ]
+}
