@@ -7,12 +7,14 @@
   import { cubicOut } from 'svelte/easing';
   import Icon from '@iconify/svelte';
   import CinemaCard from '$lib/components/CinemaCard.svelte';
-  import type { VotingHistoryRecord } from '$lib/types';
+  import StreamingLogo from '$lib/components/StreamingLogo.svelte';
+  import type { VotingHistoryRecord, StreamingService } from '$lib/types';
 
   let isLoggedIn = false;
   let logoutLoading = false;
   let mounted = false;
   let lastWinner: VotingHistoryRecord | null = null;
+  let winnerStreaming: StreamingService[] | undefined = undefined;
 
   onMount(async () => {
     auth.init();
@@ -28,6 +30,9 @@
       const latest = data.history?.[0];
       if (latest?.winner) {
         lastWinner = latest;
+        api.getStreamingAvailability(latest.winner.filmId)
+          .then(res => { winnerStreaming = res.services; })
+          .catch(() => { winnerStreaming = []; });
       }
     } catch {
       // Non-critical - home page still works without this
@@ -82,7 +87,12 @@
             <Icon icon="mdi:trophy" class="w-4 h-4" style="color: var(--accent-gold);" />
             Next Up
           </div>
-          <div class="winner-title">{lastWinner.winner!.title}</div>
+          <div class="winner-title-row">
+            <div class="winner-title">{lastWinner.winner!.title}</div>
+            <div class="winner-streaming">
+              <StreamingLogo services={winnerStreaming} />
+            </div>
+          </div>
           <div class="winner-meta">
             {formatDate(lastWinner.closedAt)}
             <span class="mx-2 opacity-40">•</span>
@@ -293,12 +303,27 @@
     margin-bottom: 0.5rem;
   }
 
+  .winner-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .winner-streaming {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transform: scale(1.5);
+    transform-origin: center;
+  }
+
   .winner-title {
     font-size: 1.6rem;
     font-weight: 700;
     color: var(--accent-gold);
     text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
-    margin-bottom: 0.4rem;
     letter-spacing: 0.02em;
   }
 
