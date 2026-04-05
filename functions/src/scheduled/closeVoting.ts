@@ -79,7 +79,15 @@ export async function closeVotingRound(): Promise<void> {
 
     // Calculate winner using Condorcet algorithm
     const algorithm = getDefaultAlgorithm();
-    const results: VotingResults = algorithm.calculateWinner(ballots, candidates);
+    let results: VotingResults = algorithm.calculateWinner(ballots, candidates);
+
+    // If no votes were cast but there are nominated films, pick one at random
+    if (!results.winner && candidates.length > 0) {
+      const randomIndex = Math.floor(Math.random() * candidates.length);
+      const randomWinner = candidates[randomIndex];
+      results = { ...results, winner: randomWinner.id, condorcetWinner: false };
+      console.log(`No votes cast - randomly selected winner: ${randomWinner.title}`);
+    }
 
     console.log(`Winner: ${results.winner || 'None'}`);
     console.log(`Condorcet winner: ${results.condorcetWinner}`);

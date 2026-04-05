@@ -1,16 +1,8 @@
 <!--
   Voting History Page
 
-  Displays a chronological list of completed voting rounds with detailed results.
-  Each round shows:
-  - Winner and whether it was a Condorcet winner (beats all others head-to-head)
-  - Vote count and number of films
-  - Top 3 films in a visual grid with medal emojis
-  - Expandable full rankings table with scores and head-to-head records
-  - Algorithm information
-
-  The page uses a collapsible UI pattern - users can expand individual rounds
-  to see detailed rankings, scores, and pairwise comparison statistics.
+  Displays a chronological list of completed voting rounds.
+  Each round shows the winner (if any), the date, vote count, and number of films.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
@@ -22,7 +14,6 @@
   let history: VotingHistoryRecord[] = [];
   let loading = true;
   let error = '';
-  let expandedRound: string | null = null;
 
   onMount(async () => {
     auth.init();
@@ -67,43 +58,6 @@
       year: 'numeric'
     });
   }
-
-  /**
-   * Toggles the expanded/collapsed state of a voting round
-   * Only one round can be expanded at a time
-   * @param roundId - ID of the round to expand/collapse
-   */
-  function toggleExpand(roundId: string) {
-    expandedRound = expandedRound === roundId ? null : roundId;
-  }
-
-  /**
-   * Returns a color class based on score performance
-   * - Green (text-success): 80%+ of max score
-   * - Yellow (text-warning): 60-79% of max score
-   * - Red (text-error): Below 60% of max score
-   * @param score - The actual score achieved
-   * @param maxScore - The maximum possible score
-   * @returns Tailwind CSS color class
-   */
-  function getScoreColor(score: number, maxScore: number): string {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 80) return 'text-success';
-    if (percentage >= 60) return 'text-warning';
-    return 'text-error';
-  }
-
-  /**
-   * Returns a medal emoji for top 3 rankings
-   * @param rank - The ranking position (1, 2, 3, etc.)
-   * @returns Medal emoji for positions 1-3, empty string otherwise
-   */
-  function getMedalEmoji(rank: number): string {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return '';
-  }
 </script>
 
 <div class="min-h-screen pb-20" style="background-color: #0A0A0A;">
@@ -134,8 +88,7 @@
         {#each history as round}
           <div class="card shadow-xl border border-primary/20 hover:border-primary/40 transition-all" style="background-color: #1A1A1A;">
             <div class="card-body">
-              <!-- Round Header -->
-              <div class="flex justify-between items-start mb-4">
+              <div class="flex justify-between items-center">
                 <div>
                   <h2 class="card-title text-2xl">
                     {#if round.winner}
@@ -144,107 +97,20 @@
                         <span class="badge badge-success badge-sm">Condorcet Winner</span>
                       {/if}
                     {:else}
-                      <span class="text-base-content/50">No Winner</span>
+                      <span class="text-base-content/50">No votes</span>
                     {/if}
                   </h2>
                   <div class="text-sm text-base-content/70 mt-1">
                     <span>{formatDate(round.closedAt)}</span>
-                    <span class="mx-2">•</span>
-                    <span>{round.totalBallots} {round.totalBallots === 1 ? 'vote' : 'votes'}</span>
-                    <span class="mx-2">•</span>
-                    <span>{round.candidateCount} {round.candidateCount === 1 ? 'film' : 'films'}</span>
-                  </div>
-                </div>
-                <button
-                  class="btn btn-sm btn-ghost"
-                  on:click={() => toggleExpand(round.roundId)}
-                >
-                  {expandedRound === round.roundId ? '▲ Hide Details' : '▼ Show Details'}
-                </button>
-              </div>
-
-              <!-- Top 3 Summary -->
-              {#if round.rankings.length > 0}
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
-                  {#each round.rankings.slice(0, 3) as ranking}
-                    <div
-                      class="p-3 rounded-lg border {ranking.rank === 1 ? 'border-primary winner-card' : 'border-base-300'}"
-                      style={ranking.rank !== 1 ? 'background-color: #2A2A2A;' : ''}
-                    >
-                      <div class="flex items-center gap-2">
-                        <span class="text-2xl">{getMedalEmoji(ranking.rank)}</span>
-                        <div class="flex-1 min-w-0">
-                          <div class="font-semibold truncate">{ranking.title}</div>
-                          <div class="text-xs text-base-content/70">
-                            Avg: {ranking.averageScore.toFixed(2)} • Total: {ranking.totalScore}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-
-              <!-- Expanded Details -->
-              {#if expandedRound === round.roundId}
-                <div class="divider"></div>
-
-                <!-- Full Rankings Table -->
-                <div class="overflow-x-auto">
-                  <table class="table table-sm">
-                    <thead>
-                      <tr>
-                        <th>Rank</th>
-                        <th>Film</th>
-                        <th>Avg Score</th>
-                        <th>Total Score</th>
-                        <th>Head-to-Head</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each round.rankings as ranking}
-                        <tr class:font-bold={ranking.rank === 1}>
-                          <td>
-                            <span class="flex items-center gap-2">
-                              {getMedalEmoji(ranking.rank)}
-                              <span class:text-primary={ranking.rank === 1}>#{ranking.rank}</span>
-                            </span>
-                          </td>
-                          <td>
-                            <div>
-                              <div class:text-primary={ranking.rank === 1}>{ranking.title}</div>
-                              {#if ranking.nominatedBy}
-                                <div class="text-xs text-base-content/50">by {ranking.nominatedBy}</div>
-                              {/if}
-                            </div>
-                          </td>
-                          <td>
-                            <span class={getScoreColor(ranking.averageScore, 3)}>
-                              {ranking.averageScore.toFixed(2)}
-                            </span>
-                          </td>
-                          <td>{ranking.totalScore}</td>
-                          <td>
-                            <span class="text-success">{ranking.pairwiseWins}W</span>
-                            <span class="mx-1">-</span>
-                            <span class="text-error">{ranking.pairwiseLosses}L</span>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-
-                <!-- Algorithm Info -->
-                <div class="mt-4 p-3 rounded-lg" style="background-color: #2A2A2A;">
-                  <div class="text-xs text-base-content/70">
-                    <span class="font-semibold">Algorithm:</span> {round.algorithm}
-                    {#if round.condorcetWinner}
-                      <span class="ml-2">• Clear winner beats all other films in head-to-head comparisons</span>
+                    {#if round.totalBallots > 0}
+                      <span class="mx-2">•</span>
+                      <span>{round.totalBallots} {round.totalBallots === 1 ? 'vote' : 'votes'}</span>
+                      <span class="mx-2">•</span>
+                      <span>{round.candidateCount} {round.candidateCount === 1 ? 'film' : 'films'}</span>
                     {/if}
                   </div>
                 </div>
-              {/if}
+              </div>
             </div>
           </div>
         {/each}
@@ -257,9 +123,5 @@
   :global(.bg-clip-text) {
     -webkit-background-clip: text;
     background-clip: text;
-  }
-
-  .winner-card {
-    background-color: rgba(139, 92, 246, 0.05);
   }
 </style>
