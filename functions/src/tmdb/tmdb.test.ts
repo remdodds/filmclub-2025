@@ -54,7 +54,7 @@ describe('searchFilm', () => {
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledWith(
-      `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent('The Matrix')}&api_key=${FAKE_API_KEY}`
+      `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent('The Matrix')}&language=en-US&api_key=${FAKE_API_KEY}`
     );
   });
 
@@ -158,8 +158,8 @@ describe('searchFilmSuggestions', () => {
   it('returns mapped suggestions from the first limit results', async () => {
     // Arrange
     const mockResults = [
-      { id: 603, original_title: 'The Matrix', release_date: '1999-03-30', poster_path: '/matrix.jpg' },
-      { id: 604, original_title: 'The Matrix Reloaded', release_date: '2003-05-15', poster_path: '/reloaded.jpg' },
+      { id: 603, title: 'The Matrix', release_date: '1999-03-30', poster_path: '/matrix.jpg' },
+      { id: 604, title: 'The Matrix Reloaded', release_date: '2003-05-15', poster_path: '/reloaded.jpg' },
     ];
     fetchSpy.mockResolvedValue({
       ok: true,
@@ -232,7 +232,7 @@ describe('searchFilmSuggestions', () => {
     // Arrange
     const mockResults = Array.from({ length: 10 }, (_, i) => ({
       id: 600 + i,
-      original_title: `Film ${i}`,
+      title: `Film ${i}`,
       release_date: '2000-01-01',
       poster_path: null,
     }));
@@ -253,7 +253,7 @@ describe('searchFilmSuggestions', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({
-        results: [{ id: 603, original_title: 'The Matrix', release_date: '1999-03-30' }],
+        results: [{ id: 603, title: 'The Matrix', release_date: '1999-03-30' }],
       }),
     } as Response);
 
@@ -269,7 +269,7 @@ describe('searchFilmSuggestions', () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({
-        results: [{ id: 603, original_title: 'The Matrix', poster_path: null }],
+        results: [{ id: 603, title: 'The Matrix', poster_path: null }],
       }),
     } as Response);
 

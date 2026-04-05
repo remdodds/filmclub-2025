@@ -39,7 +39,7 @@ export interface StreamingService {
  */
 export async function searchFilm(title: string, apiKey: string): Promise<FilmMetadata | null> {
   try {
-    const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&api_key=${apiKey}`;
+    const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US&api_key=${apiKey}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -123,7 +123,7 @@ export async function searchFilmSuggestions(
   limit = 5
 ): Promise<FilmSuggestion[]> {
   try {
-    const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${apiKey}`;
+    const url = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&language=en-US&api_key=${apiKey}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -140,7 +140,7 @@ export async function searchFilmSuggestions(
 
     return results.slice(0, limit).map((result) => ({
       tmdbId: result.id,
-      title: result.original_title,
+      title: result.title,
       releaseYear: result.release_date ? parseInt(result.release_date.slice(0, 4)) : null,
       posterPath: result.poster_path ?? null,
     }));
