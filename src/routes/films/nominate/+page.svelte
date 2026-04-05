@@ -114,8 +114,8 @@
                 id="search-input"
                 type="text"
                 placeholder="Type a film title..."
-                class="input input-bordered w-full pl-10"
-                style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px;"
+                class="input input-bordered w-full"
+                style="background: rgba(26, 26, 26, 0.8); border-color: rgba(212, 175, 55, 0.3); min-height: 48px; padding-left: 2.5rem;"
                 bind:value={searchQuery}
                 bind:this={inputEl}
                 on:input={handleSearchInput}
