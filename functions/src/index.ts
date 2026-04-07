@@ -79,6 +79,9 @@ app.get('/config', configApi.getConfig);
 app.get('/admin/votes', adminApi.getAdminVotes);
 app.post('/admin/open-round', adminApi.openRound);
 app.post('/admin/select-winner', adminApi.selectWinner);
+app.delete('/admin/clear-films', adminApi.clearNominatedFilms);
+app.delete('/admin/history/:roundId', adminApi.deleteHistoryRecord);
+app.patch('/admin/history/:roundId', adminApi.updateHistoryRecord);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);
