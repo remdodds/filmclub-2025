@@ -169,5 +169,28 @@ export const api = {
       method: 'POST',
     });
     return handleResponse(res);
+  },
+
+  async clearNominatedFilms() {
+    const res = await fetch(`${API_BASE}/admin/clear-films`, {
+      method: 'DELETE',
+    });
+    return handleResponse(res);
+  },
+
+  async deleteHistoryRecord(roundId: string) {
+    const res = await fetch(`${API_BASE}/admin/history/${encodeURIComponent(roundId)}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(res);
+  },
+
+  async updateHistoryRecord(roundId: string, winnerTitle: string) {
+    const res = await fetch(`${API_BASE}/admin/history/${encodeURIComponent(roundId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ winnerTitle }),
+    });
+    return handleResponse(res);
   }
 };
