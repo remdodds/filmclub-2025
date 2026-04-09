@@ -42,7 +42,7 @@
     loading = true;
     try {
       const data = await api.loginWithGoogle(pendingIdToken, password);
-      auth.login(data.sessionToken, data.visitorId);
+      auth.login(data.sessionToken, data.visitorId, data.isAdmin ?? false);
       goto('/home');
     } catch (err) {
       error = err instanceof Error ? err.message : 'Login failed';

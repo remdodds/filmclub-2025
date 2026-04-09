@@ -153,13 +153,16 @@ export const api = {
 
   // Admin
   async getAdminVotes() {
-    const res = await fetch(`${API_BASE}/admin/votes`);
+    const res = await fetch(`${API_BASE}/admin/votes`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
     return handleResponse(res);
   },
 
   async openRound() {
     const res = await fetch(`${API_BASE}/admin/open-round`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     return handleResponse(res);
   },
@@ -167,6 +170,7 @@ export const api = {
   async selectWinner() {
     const res = await fetch(`${API_BASE}/admin/select-winner`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     return handleResponse(res);
   },
@@ -174,6 +178,7 @@ export const api = {
   async clearNominatedFilms() {
     const res = await fetch(`${API_BASE}/admin/clear-films`, {
       method: 'DELETE',
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     return handleResponse(res);
   },
@@ -181,6 +186,7 @@ export const api = {
   async deleteHistoryRecord(roundId: string) {
     const res = await fetch(`${API_BASE}/admin/history/${encodeURIComponent(roundId)}`, {
       method: 'DELETE',
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     return handleResponse(res);
   },
@@ -188,7 +194,10 @@ export const api = {
   async updateHistoryRecord(roundId: string, winnerTitle: string) {
     const res = await fetch(`${API_BASE}/admin/history/${encodeURIComponent(roundId)}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ winnerTitle }),
     });
     return handleResponse(res);

@@ -50,6 +50,16 @@ export async function createSession(visitorId: string): Promise<string> {
 }
 
 /**
+ * Check whether a given Firebase UID belongs to an admin user
+ * @param uid - Firebase UID (same as visitorId in sessions)
+ * @returns True if the uid has a document in the admins collection
+ */
+export async function isAdminUser(uid: string): Promise<boolean> {
+  const doc = await db.collection('admins').doc(uid).get();
+  return doc.exists;
+}
+
+/**
  * Validate a session token and return the visitor ID if valid
  * @param token - Session token to validate
  * @returns Visitor ID if valid, null if invalid or expired
