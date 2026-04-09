@@ -94,6 +94,7 @@ export interface AuthState {
   sessionToken: string | null;
   visitorId: string | null;
   isLoggedIn: boolean;
+  isAdmin: boolean;
 }
 
 export interface PairwiseComparison {

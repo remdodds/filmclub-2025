@@ -15,7 +15,7 @@ import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './db';
 import { createSessionData, isSessionExpired } from './auth.logic';
-import { hashPassword, verifyPassword, createSession, validateSession } from './auth';
+import { hashPassword, verifyPassword, createSession, validateSession, isAdminUser } from './auth';
 
 const mockBcryptHash = bcrypt.hash as jest.Mock;
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
@@ -142,6 +142,42 @@ describe('createSession', () => {
 
     // Assert
     expect(result).toBe('my-session-token');
+  });
+});
+
+describe('isAdminUser', () => {
+  let mockGet: jest.Mock;
+  let mockDoc: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet = jest.fn();
+    mockDoc = jest.fn().mockReturnValue({ get: mockGet });
+    (db.collection as jest.Mock).mockReturnValue({ doc: mockDoc });
+  });
+
+  it('returns true when the admins document exists for the given uid', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+
+    // Act
+    const result = await isAdminUser('admin-uid-123');
+
+    // Assert
+    expect(db.collection).toHaveBeenCalledWith('admins');
+    expect(mockDoc).toHaveBeenCalledWith('admin-uid-123');
+    expect(result).toBe(true);
+  });
+
+  it('returns false when the admins document does not exist for the given uid', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: false });
+
+    // Act
+    const result = await isAdminUser('non-admin-uid');
+
+    // Assert
+    expect(result).toBe(false);
   });
 });
 

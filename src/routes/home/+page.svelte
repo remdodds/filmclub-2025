@@ -11,6 +11,7 @@
   import type { VotingHistoryRecord, StreamingService } from '$lib/types';
 
   let isLoggedIn = false;
+  let isAdmin = false;
   let logoutLoading = false;
   let mounted = false;
   let lastWinner: VotingHistoryRecord | null = null;
@@ -20,6 +21,7 @@
     auth.init();
     auth.subscribe(state => {
       isLoggedIn = state.isLoggedIn;
+      isAdmin = state.isAdmin;
       if (!isLoggedIn) {
         goto('/');
       }
@@ -200,6 +202,7 @@
         </div>
 
         <!-- Admin Card -->
+        {#if isAdmin}
         <div
           class="stagger-item"
           style="animation-delay: 400ms;"
@@ -221,6 +224,7 @@
             </div>
           </CinemaCard>
         </div>
+        {/if}
 
         <!-- Exit/Logout Card -->
         <div

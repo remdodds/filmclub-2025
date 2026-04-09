@@ -13,7 +13,7 @@ jest.mock('uuid', () => ({ v4: jest.fn() }));
 jest.mock('firebase-admin/auth', () => ({ getAuth: jest.fn() }));
 
 import { db } from '../utils/db';
-import { verifyPassword, createSession, validateSession } from '../utils/auth';
+import { verifyPassword, createSession, validateSession, isAdminUser } from '../utils/auth';
 import { validatePassword as validatePasswordLogic } from '../utils/auth.logic';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -21,6 +21,7 @@ const mockDb = db as jest.Mocked<typeof db>;
 const mockVerifyPassword = verifyPassword as jest.Mock;
 const mockCreateSession = createSession as jest.Mock;
 const mockValidateSession = validateSession as jest.Mock;
+const mockIsAdminUser = isAdminUser as jest.Mock;
 const mockValidatePasswordLogic = validatePasswordLogic as jest.Mock;
 const mockGetAuth = getAuth as jest.Mock;
 
@@ -173,9 +174,10 @@ describe('checkSession', () => {
     expect(mockJson).toHaveBeenCalledWith({ valid: false, error: 'Invalid or expired session' });
   });
 
-  it('returns 200 with valid:true and visitorId for a valid session', async () => {
+  it('returns 200 with valid:true, visitorId, and isAdmin:true when user is an admin', async () => {
     // Arrange
     mockValidateSession.mockResolvedValue('visitor-uuid-5678');
+    mockIsAdminUser.mockResolvedValue(true);
 
     // Act
     await checkSession(mockRequest as Request, mockResponse as Response);
@@ -183,7 +185,20 @@ describe('checkSession', () => {
     // Assert
     expect(mockValidateSession).toHaveBeenCalledWith('valid-session-token');
     expect(mockStatus).toHaveBeenCalledWith(200);
-    expect(mockJson).toHaveBeenCalledWith({ valid: true, visitorId: 'visitor-uuid-5678' });
+    expect(mockJson).toHaveBeenCalledWith({ valid: true, visitorId: 'visitor-uuid-5678', isAdmin: true });
+  });
+
+  it('returns 200 with valid:true, visitorId, and isAdmin:false when user is not an admin', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('visitor-uuid-5678');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    await checkSession(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({ valid: true, visitorId: 'visitor-uuid-5678', isAdmin: false });
   });
 
   it('returns 500 on unexpected error', async () => {
@@ -333,7 +348,7 @@ describe('loginWithGoogle', () => {
     expect(mockCreateSession).toHaveBeenCalledWith('firebase-uid-abc');
   });
 
-  it('returns 200 with sessionToken and visitorId (uid from decoded token) on success', async () => {
+  it('returns 200 with sessionToken, visitorId, and isAdmin:true when user is an admin', async () => {
     // Arrange
     mockValidatePasswordLogic.mockReturnValue({ isValid: true });
     const mockDocGet = jest.fn().mockResolvedValue({
@@ -347,6 +362,7 @@ describe('loginWithGoogle', () => {
     mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
     mockVerifyIdToken.mockResolvedValue({ uid: 'firebase-uid-abc' });
     mockCreateSession.mockResolvedValue('new-session-token');
+    mockIsAdminUser.mockResolvedValue(true);
 
     // Act
     await loginWithGoogle(mockRequest as Request, mockResponse as Response);
@@ -356,6 +372,35 @@ describe('loginWithGoogle', () => {
     expect(mockJson).toHaveBeenCalledWith({
       sessionToken: 'new-session-token',
       visitorId: 'firebase-uid-abc',
+      isAdmin: true,
+    });
+  });
+
+  it('returns 200 with sessionToken, visitorId, and isAdmin:false when user is not an admin', async () => {
+    // Arrange
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(true);
+    mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
+    mockVerifyIdToken.mockResolvedValue({ uid: 'firebase-uid-abc' });
+    mockCreateSession.mockResolvedValue('new-session-token');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({
+      sessionToken: 'new-session-token',
+      visitorId: 'firebase-uid-abc',
+      isAdmin: false,
     });
   });
 

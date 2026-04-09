@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '../utils/db';
-import { verifyPassword, createSession, validateSession } from '../utils/auth';
+import { verifyPassword, createSession, validateSession, isAdminUser } from '../utils/auth';
 import { validatePassword as validatePasswordLogic } from '../utils/auth.logic';
 
 /**
@@ -73,9 +73,11 @@ export async function checkSession(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const isAdmin = await isAdminUser(visitorId);
     res.status(200).json({
       valid: true,
       visitorId,
+      isAdmin,
     });
   } catch (error) {
     console.error('Session check error:', error);
@@ -139,7 +141,8 @@ export async function loginWithGoogle(req: Request, res: Response): Promise<void
     // Create a Firestore session exactly like the password flow
     const sessionToken = await createSession(visitorId);
 
-    res.status(200).json({ sessionToken, visitorId });
+    const isAdmin = await isAdminUser(visitorId);
+    res.status(200).json({ sessionToken, visitorId, isAdmin });
   } catch (error: any) {
     const code: string = error?.code ?? 'unknown';
     console.error('Google login error [%s]:', code, error?.message ?? error);

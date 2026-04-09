@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { goto } from '$app/navigation';
   import { api } from '$lib/api';
+  import { auth } from '$lib/stores';
 
   interface Candidate {
     id: string;
@@ -77,6 +79,12 @@
   let deleteError = '';
 
   onMount(async () => {
+    auth.init();
+    const state = get(auth);
+    if (!state.isLoggedIn || !state.isAdmin) {
+      goto('/home');
+      return;
+    }
     await Promise.all([loadVotes(), loadHistory()]);
   });
 

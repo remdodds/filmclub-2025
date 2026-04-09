@@ -7,7 +7,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import express, { Request, Response, NextFunction } from 'express';
-import { validateSession } from './utils/auth';
+import { validateSession, isAdminUser } from './utils/auth';
 
 // Import API handlers
 import * as authApi from './api/auth';
@@ -71,17 +71,32 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+// Admin middleware - requires authMiddleware to have run first (req.visitorId must be set)
+async function adminMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const isAdmin = await isAdminUser((req as any).visitorId);
+    if (!isAdmin) {
+      res.status(403).json({ error: 'Forbidden. Admin access required.' });
+      return;
+    }
+    next();
+  } catch (error) {
+    console.error('Admin middleware error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // Public routes (no auth required)
 app.post('/auth/google', authApi.loginWithGoogle);
 app.get('/config', configApi.getConfig);
 
-// Admin routes (no auth required - visible to everyone)
-app.get('/admin/votes', adminApi.getAdminVotes);
-app.post('/admin/open-round', adminApi.openRound);
-app.post('/admin/select-winner', adminApi.selectWinner);
-app.delete('/admin/clear-films', adminApi.clearNominatedFilms);
-app.delete('/admin/history/:roundId', adminApi.deleteHistoryRecord);
-app.patch('/admin/history/:roundId', adminApi.updateHistoryRecord);
+// Admin routes (auth + admin required)
+app.get('/admin/votes', authMiddleware, adminMiddleware, adminApi.getAdminVotes);
+app.post('/admin/open-round', authMiddleware, adminMiddleware, adminApi.openRound);
+app.post('/admin/select-winner', authMiddleware, adminMiddleware, adminApi.selectWinner);
+app.delete('/admin/clear-films', authMiddleware, adminMiddleware, adminApi.clearNominatedFilms);
+app.delete('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.deleteHistoryRecord);
+app.patch('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.updateHistoryRecord);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);

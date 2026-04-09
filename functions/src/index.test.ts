@@ -20,22 +20,23 @@ jest.mock('./tmdb/tmdb', () => ({
   tmdbApiKey: { value: jest.fn().mockReturnValue('mock-api-key') },
 }));
 jest.mock('uuid', () => ({ v4: jest.fn() }));
-jest.mock('./utils/auth', () => ({ validateSession: jest.fn() }));
+jest.mock('./utils/auth', () => ({ validateSession: jest.fn(), isAdminUser: jest.fn() }));
 jest.mock('./api/auth', () => ({ login: jest.fn(), logout: jest.fn(), checkSession: jest.fn(), loginWithGoogle: jest.fn() }));
-jest.mock('./api/films', () => ({ listFilms: jest.fn(), addFilm: jest.fn(), deleteFilm: jest.fn(), getHistory: jest.fn(), searchFilms: jest.fn() }));
+jest.mock('./api/films', () => ({ listFilms: jest.fn(), addFilm: jest.fn(), deleteFilm: jest.fn(), getHistory: jest.fn(), searchFilms: jest.fn(), getStreamingAvailability: jest.fn() }));
 jest.mock('./api/votes', () => ({ getCurrentVoting: jest.fn(), submitVote: jest.fn(), getLatestResults: jest.fn() }));
 jest.mock('./api/config', () => ({ getConfig: jest.fn(), setupClub: jest.fn(), updateVotingSchedule: jest.fn() }));
 jest.mock('./api/history', () => ({ getHistory: jest.fn() }));
-jest.mock('./api/admin', () => ({ getAdminVotes: jest.fn(), openRound: jest.fn(), selectWinner: jest.fn() }));
+jest.mock('./api/admin', () => ({ getAdminVotes: jest.fn(), openRound: jest.fn(), selectWinner: jest.fn(), clearNominatedFilms: jest.fn(), deleteHistoryRecord: jest.fn(), updateHistoryRecord: jest.fn() }));
 jest.mock('./scheduled/openVoting', () => ({ openVotingRound: jest.fn() }));
 jest.mock('./scheduled/closeVoting', () => ({ closeVotingRound: jest.fn() }));
 
-import { validateSession } from './utils/auth';
+import { validateSession, isAdminUser } from './utils/auth';
 import * as filmsApi from './api/films';
 import { openVotingRound } from './scheduled/openVoting';
 import { closeVotingRound } from './scheduled/closeVoting';
 
 const mockValidateSession = validateSession as jest.Mock;
+const mockIsAdminUser = isAdminUser as jest.Mock;
 
 let app: any;
 let indexModule: any;
@@ -314,5 +315,81 @@ describe('closeVoting scheduled handler', () => {
 
     // Assert
     expect(closeVotingRound).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// adminMiddleware
+// ---------------------------------------------------------------------------
+
+describe('adminMiddleware', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns 401 when no Authorization header is provided on an admin route', async () => {
+    // Act
+    const { status, body } = await dispatch('GET', '/admin/votes');
+
+    // Assert
+    expect(status).toBe(401);
+    expect(body).toEqual({ error: 'Unauthorized. No session token provided.' });
+  });
+
+  it('returns 403 when session is valid but user is not an admin', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('non-admin-uid');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    const { status, body } = await dispatch('GET', '/admin/votes', { authorization: 'Bearer valid-token' });
+
+    // Assert
+    expect(status).toBe(403);
+    expect(body).toEqual({ error: 'Forbidden. Admin access required.' });
+  });
+
+  it('calls isAdminUser with the visitorId from the session when session is valid', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('some-uid-123');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    await dispatch('GET', '/admin/votes', { authorization: 'Bearer valid-token' });
+
+    // Assert
+    expect(mockIsAdminUser).toHaveBeenCalledWith('some-uid-123');
+  });
+
+  it('proceeds to the handler and returns 200 when user is both authenticated and an admin', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('admin-uid-abc');
+    mockIsAdminUser.mockResolvedValue(true);
+    const adminApi = await import('./api/admin');
+    (adminApi.getAdminVotes as jest.Mock).mockImplementation((_req: any, res: any) => {
+      res.status(200).json({ isOpen: false, candidates: [], ballots: [], totalBallots: 0, votingRound: null });
+    });
+
+    // Act
+    const { status } = await dispatch('GET', '/admin/votes', { authorization: 'Bearer admin-token' });
+
+    // Assert
+    expect(status).toBe(200);
+  });
+
+  it('returns 500 when isAdminUser throws an unexpected error', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('some-uid');
+    mockIsAdminUser.mockRejectedValue(new Error('Firestore failure'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    const { status, body } = await dispatch('GET', '/admin/votes', { authorization: 'Bearer valid-token' });
+
+    // Assert
+    expect(status).toBe(500);
+    expect(body).toEqual({ error: 'Internal server error' });
+
+    consoleErrorSpy.mockRestore();
   });
 });
