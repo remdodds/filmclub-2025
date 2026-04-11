@@ -14,8 +14,11 @@ test.describe('Home page', () => {
     await expect(page.getByRole('heading', { name: 'Nominate a Film' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cast Your Vote' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Past Premieres' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Exit' })).toBeVisible();
+  });
+
+  test('shows admin card for admin users', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
   });
 
   test('navigates to films page', async ({ page }) => {

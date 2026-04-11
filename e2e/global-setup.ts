@@ -70,7 +70,11 @@ export default async function globalSetup() {
       localStorage.setItem('visitorId', id);
       localStorage.setItem('isAdmin', String(admin));
     },
-    { token: sessionToken, id: visitorId, admin: isAdmin }
+    // isAdmin ?? true: fall back to true when the backend pre-dates the isAdmin
+    // field (i.e. the field is absent/undefined), so tests keep passing against
+    // the old API.  An explicit false (user not in admins on the new backend)
+    // is preserved — the nullish coalescing operator only fires on null/undefined.
+    { token: sessionToken, id: visitorId, admin: isAdmin ?? true }
   );
   await context.storageState({ path: authFile });
   await browser.close();
