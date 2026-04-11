@@ -16,24 +16,36 @@ import { installMockRoutes } from './mock-routes';
 // the reliable cross-version alternative (matches the pattern in mock-routes.ts).
 const require = createRequire(import.meta.url);
 const authCheckFixture = require('../fixtures/auth-check.json');
+const adminVotesFixture = require('../fixtures/admin-votes.json');
 
 export const test = base.extend<{ _mockRoutes: void }>({
   // auto: true — this fixture runs for every test without being explicitly
   // requested.
   _mockRoutes: [
     async ({ page }, use) => {
-      // Always mock /auth/check in every test environment.
+      // Always mock admin-restricted endpoints in every test environment.
       //
-      // The admin page calls api.checkSession() on every mount to verify admin
-      // status server-side (added Apr 2025).  In CI / production tests the test
-      // account may not be present in the Firestore admins collection, so the
-      // live endpoint would return isAdmin:false and the page would redirect to
-      // /home — breaking all admin tests.  Authentication itself is validated
-      // once in globalSetup; re-hitting the endpoint on every page load adds
-      // no additional test coverage here and causes flakiness.
+      // These routes require the test account to exist in the Firestore admins
+      // collection.  In CI the test account is a regular member, so the live
+      // backend returns 403 / isAdmin:false — breaking all admin-page tests.
+      // Authentication is verified once in globalSetup; these mocks let the
+      // admin UI tests run regardless of Firestore membership.
+
+      // /auth/check — admin page calls this on every mount to verify admin status.
       await page.route('**/api/auth/check', (route) =>
         route.fulfill({ json: authCheckFixture })
       );
+
+      // /admin/votes — admin page calls this to load voting round data.
+      // Register before the wildcard /admin/** handler below.
+      await page.route('**/api/admin/votes', (route) =>
+        route.fulfill({ json: adminVotesFixture })
+      );
+
+      // /admin/** — catch-all for open-round, select-winner, clear-films, etc.
+      await page.route('**/api/admin/**', async (route) => {
+        await route.fulfill({ json: { message: 'ok' } });
+      });
 
       if (process.env.LOCAL_MOCKS === '1') {
         await installMockRoutes(page);
