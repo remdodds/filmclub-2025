@@ -1,4 +1,5 @@
 {
   "valid": true,
-  "visitorId": "local-visitor-001"
+  "visitorId": "local-visitor-001",
+  "isAdmin": true
 }

@@ -29,6 +29,7 @@ export default async function globalSetup() {
         localStorage: [
           { name: 'sessionToken', value: LOCAL_SESSION_TOKEN },
           { name: 'visitorId', value: LOCAL_VISITOR_ID },
+          { name: 'isAdmin', value: 'true' },
         ],
       },
     ],
