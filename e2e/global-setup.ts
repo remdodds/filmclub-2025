@@ -21,7 +21,7 @@ async function getFirebaseIdToken(apiKey: string, email: string, password: strin
   return data.idToken as string;
 }
 
-async function getSessionToken(idToken: string, clubPassword: string): Promise<{ sessionToken: string; visitorId: string }> {
+async function getSessionToken(idToken: string, clubPassword: string): Promise<{ sessionToken: string; visitorId: string; isAdmin: boolean }> {
   const res = await fetch(`${API_BASE}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -57,7 +57,7 @@ export default async function globalSetup() {
 
   // Get a fresh Firebase ID token on every run — no expiry concerns
   const idToken = await getFirebaseIdToken(firebaseApiKey, testEmail, testPassword);
-  const { sessionToken, visitorId } = await getSessionToken(idToken, clubPassword);
+  const { sessionToken, visitorId, isAdmin } = await getSessionToken(idToken, clubPassword);
 
   // Inject into browser localStorage and save storageState
   const browser = await chromium.launch();
@@ -65,11 +65,12 @@ export default async function globalSetup() {
   const page = await context.newPage();
   await page.goto(baseURL);
   await page.evaluate(
-    ({ token, id }) => {
+    ({ token, id, admin }) => {
       localStorage.setItem('sessionToken', token);
       localStorage.setItem('visitorId', id);
+      localStorage.setItem('isAdmin', String(admin));
     },
-    { token: sessionToken, id: visitorId }
+    { token: sessionToken, id: visitorId, admin: isAdmin }
   );
   await context.storageState({ path: authFile });
   await browser.close();
