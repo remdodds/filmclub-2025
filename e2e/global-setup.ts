@@ -70,11 +70,11 @@ export default async function globalSetup() {
       localStorage.setItem('visitorId', id);
       localStorage.setItem('isAdmin', String(admin));
     },
-    // isAdmin ?? true: fall back to true when the backend pre-dates the isAdmin
-    // field (i.e. the field is absent/undefined), so tests keep passing against
-    // the old API.  An explicit false (user not in admins on the new backend)
-    // is preserved — the nullish coalescing operator only fires on null/undefined.
-    { token: sessionToken, id: visitorId, admin: isAdmin ?? true }
+    // Always treat the e2e test account as admin so that admin UI tests can run
+    // regardless of whether the account exists in the Firestore admins collection.
+    // The /auth/check endpoint is mocked in the test fixture (fixtures.ts) so the
+    // admin page never makes a live check during test runs.
+    { token: sessionToken, id: visitorId, admin: true }
   );
   await context.storageState({ path: authFile });
   await browser.close();
