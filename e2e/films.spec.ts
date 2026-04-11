@@ -14,7 +14,10 @@ test.describe('Nominated Films page', () => {
   });
 
   test('Nominate a Film button navigates to nominate page', async ({ page }) => {
-    await page.getByRole('button', { name: /Nominate a Film/i }).click();
+    // Use .first() because the page renders a second "Nominate a Film" button
+    // in the empty-state section when no films exist, which would cause a strict
+    // mode violation.  The header button is always the first one.
+    await page.getByRole('button', { name: /Nominate a Film/i }).first().click();
     await expect(page).toHaveURL('/films/nominate');
   });
 
