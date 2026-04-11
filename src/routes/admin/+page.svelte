@@ -81,7 +81,17 @@
   onMount(async () => {
     auth.init();
     const state = get(auth);
-    if (!state.isLoggedIn || !state.isAdmin) {
+    if (!state.isLoggedIn) {
+      goto('/');
+      return;
+    }
+    try {
+      const check = await api.checkSession();
+      if (!check.isAdmin) {
+        goto('/home');
+        return;
+      }
+    } catch {
       goto('/home');
       return;
     }
