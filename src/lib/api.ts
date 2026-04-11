@@ -213,5 +213,17 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     });
     return handleResponse(res);
+  },
+
+  async updateClubName(clubName: string) {
+    const res = await fetch(`${API_BASE}/admin/club-name`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ clubName }),
+    });
+    return handleResponse(res);
   }
 };

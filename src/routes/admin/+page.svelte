@@ -78,6 +78,13 @@
   let deletingRoundId: string | null = null;
   let deleteError = '';
 
+  // Change club name state
+  let currentClubName = '';
+  let newClubName = '';
+  let changingClubName = false;
+  let changeClubNameResult = '';
+  let changeClubNameError = '';
+
   // Change password state
   let currentPassword = '';
   let newPassword = '';
@@ -102,6 +109,12 @@
     } catch {
       goto('/home');
       return;
+    }
+    try {
+      const configResult = await api.getConfig();
+      currentClubName = configResult.config?.clubName ?? '';
+    } catch {
+      // non-fatal
     }
     await Promise.all([loadVotes(), loadHistory()]);
   });
@@ -258,6 +271,26 @@
       changePasswordError = err instanceof Error ? err.message : 'Failed to change password';
     } finally {
       changingPassword = false;
+    }
+  }
+
+  async function handleChangeClubName() {
+    changeClubNameError = '';
+    changeClubNameResult = '';
+    if (!newClubName.trim()) {
+      changeClubNameError = 'Club name cannot be empty.';
+      return;
+    }
+    changingClubName = true;
+    try {
+      await api.updateClubName(newClubName.trim());
+      currentClubName = newClubName.trim();
+      changeClubNameResult = 'Club name updated successfully.';
+      newClubName = '';
+    } catch (err) {
+      changeClubNameError = err instanceof Error ? err.message : 'Failed to update club name';
+    } finally {
+      changingClubName = false;
     }
   }
 
@@ -575,6 +608,58 @@
         </div>
 
       {/if}
+
+      <!-- Change Club Name -->
+      <div class="card shadow-xl border border-base-300/20 mt-6" style="background-color: #1A1A1A;">
+        <div class="card-body">
+          <h2 class="card-title text-xl mb-1">Change Club Name</h2>
+          <p class="text-base-content/50 text-sm mb-4">
+            {#if currentClubName}Current name: <span class="text-base-content/80">{currentClubName}</span>{:else}Update the display name for this club.{/if}
+          </p>
+
+          {#if changeClubNameResult}
+            <div class="alert alert-success mb-3">
+              <span>{changeClubNameResult}</span>
+            </div>
+          {/if}
+          {#if changeClubNameError}
+            <div class="alert alert-error mb-3">
+              <span>{changeClubNameError}</span>
+            </div>
+          {/if}
+
+          <form on:submit|preventDefault={handleChangeClubName} class="flex flex-col gap-3 max-w-sm">
+            <div>
+              <label class="label pb-1" for="newClubName">
+                <span class="label-text text-base-content/70 text-xs uppercase tracking-wide">New club name</span>
+              </label>
+              <input
+                id="newClubName"
+                type="text"
+                class="input input-bordered input-sm w-full"
+                bind:value={newClubName}
+                disabled={changingClubName}
+                required
+                maxlength="100"
+              />
+            </div>
+            <div class="mt-1">
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm"
+                disabled={changingClubName || !newClubName.trim()}
+              >
+                {#if changingClubName}
+                  <span class="loading loading-spinner loading-xs"></span>
+                  Saving...
+                {:else}
+                  Save Club Name
+                {/if}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Change Club Password -->
       <div class="card shadow-xl border border-base-300/20 mt-6" style="background-color: #1A1A1A;">

@@ -300,3 +300,46 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+/**
+ * PATCH /admin/club-name
+ * Update the club name (admin only)
+ *
+ * Request body:
+ * {
+ *   clubName: string
+ * }
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   clubName: string
+ * }
+ */
+export async function updateClubName(req: Request, res: Response): Promise<void> {
+  try {
+    const { clubName } = req.body;
+    const trimmed = typeof clubName === 'string' ? clubName.trim() : '';
+
+    if (!trimmed) {
+      res.status(400).json({ error: 'Missing required field: clubName' });
+      return;
+    }
+
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(404).json({ error: 'Club not configured.' });
+      return;
+    }
+
+    await db.collection('config').doc('club').update({
+      clubName: trimmed,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({ success: true, clubName: trimmed });
+  } catch (error) {
+    console.error('Update club name error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
