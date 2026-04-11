@@ -3,19 +3,20 @@
  */
 
 import { Request, Response } from 'express';
-import { setupClub, getConfig, updateVotingSchedule } from './config';
+import { setupClub, getConfig, updateVotingSchedule, changePassword } from './config';
 
 // Mock all dependencies
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
-jest.mock('../utils/auth', () => ({ hashPassword: jest.fn() }));
+jest.mock('../utils/auth', () => ({ hashPassword: jest.fn(), verifyPassword: jest.fn() }));
 jest.mock('../utils/auth.logic', () => ({ validatePassword: jest.fn() }));
 
 import { db } from '../utils/db';
-import { hashPassword } from '../utils/auth';
+import { hashPassword, verifyPassword } from '../utils/auth';
 import { validatePassword } from '../utils/auth.logic';
 
 const mockDb = db as jest.Mocked<typeof db>;
 const mockHashPassword = hashPassword as jest.Mock;
+const mockVerifyPassword = verifyPassword as jest.Mock;
 const mockValidatePassword = validatePassword as jest.Mock;
 
 describe('setupClub', () => {
@@ -514,6 +515,142 @@ describe('updateVotingSchedule', () => {
 
     // Act
     await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('changePassword', () => {
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let mockJson: jest.Mock;
+  let mockStatus: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockUpdate: jest.Mock;
+  let mockDoc: jest.Mock;
+  let mockCollection: jest.Mock;
+
+  const storedData = {
+    clubName: 'Test Film Club',
+    timezone: 'Europe/London',
+    votingSchedule: { openDay: 1, closeDay: 5, openTime: '18:00', closeTime: '23:59' },
+    passwordHash: 'existing_hash',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockJson = jest.fn();
+    mockStatus = jest.fn().mockReturnThis();
+    mockResponse = { status: mockStatus, json: mockJson };
+
+    mockUpdate = jest.fn().mockResolvedValue(undefined);
+    mockGet = jest.fn();
+    mockDoc = jest.fn().mockReturnValue({ get: mockGet, update: mockUpdate });
+    mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    (mockDb.collection as jest.Mock).mockImplementation(mockCollection);
+
+    mockHashPassword.mockResolvedValue('new_hashed_password');
+    mockVerifyPassword.mockResolvedValue(true);
+    mockValidatePassword.mockReturnValue({ isValid: true });
+  });
+
+  it('returns 400 when currentPassword is missing', async () => {
+    // Arrange
+    mockRequest = { body: { newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required fields: currentPassword, newPassword' });
+  });
+
+  it('returns 400 when newPassword is missing', async () => {
+    // Arrange
+    mockRequest = { body: { currentPassword: 'OldPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required fields: currentPassword, newPassword' });
+  });
+
+  it('returns 404 when club is not configured', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: false });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(404);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured.' });
+  });
+
+  it('returns 401 when current password is incorrect', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockVerifyPassword.mockResolvedValue(false);
+    mockRequest = { body: { currentPassword: 'WrongPass!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockVerifyPassword).toHaveBeenCalledWith('WrongPass!', storedData.passwordHash);
+    expect(mockStatus).toHaveBeenCalledWith(401);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Current password is incorrect.' });
+  });
+
+  it('returns 400 when new password fails validation', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockValidatePassword.mockReturnValue({ isValid: false, error: 'Password must be at least 8 characters' });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'short' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Password must be at least 8 characters' });
+  });
+
+  it('hashes the new password and updates Firestore on success', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockHashPassword).toHaveBeenCalledWith('NewPass123!');
+    expect(mockUpdate).toHaveBeenCalledWith({
+      passwordHash: 'new_hashed_password',
+      updatedAt: expect.any(Date),
+    });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    // Arrange
+    mockGet.mockRejectedValue(new Error('Firestore unavailable'));
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
 
     // Assert
     expect(mockStatus).toHaveBeenCalledWith(500);

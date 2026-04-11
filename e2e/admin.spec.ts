@@ -52,4 +52,29 @@ test.describe('Admin panel', () => {
       await expect(page.getByRole('button', { name: 'Run Winner Selection' })).toBeVisible();
     }
   });
+
+  test('shows the Change Club Password section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Change Club Password' })).toBeVisible();
+  });
+
+  test('change password form has current, new, and confirm fields', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.locator('#currentPassword')).toBeVisible();
+    await expect(page.locator('#newPassword')).toBeVisible();
+    await expect(page.locator('#confirmNewPassword')).toBeVisible();
+  });
+
+  test('Change Password button is disabled when fields are empty', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Change Password' })).toBeDisabled();
+  });
+
+  test('Change Password button enables when all fields are filled', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await page.locator('#currentPassword').fill('OldPass123!');
+    await page.locator('#newPassword').fill('NewPass123!');
+    await page.locator('#confirmNewPassword').fill('NewPass123!');
+    await expect(page.getByRole('button', { name: 'Change Password' })).toBeEnabled();
+  });
 });
