@@ -36,15 +36,18 @@ export const test = base.extend<{ _mockRoutes: void }>({
         route.fulfill({ json: authCheckFixture })
       );
 
-      // /admin/votes — admin page calls this to load voting round data.
-      // Register before the wildcard /admin/** handler below.
-      await page.route('**/api/admin/votes', (route) =>
-        route.fulfill({ json: adminVotesFixture })
-      );
-
-      // /admin/** — catch-all for open-round, select-winner, clear-films, etc.
+      // Single handler for all /admin/** routes — mirrors the approach in
+      // mock-routes.ts to avoid LIFO-ordering problems.  Playwright processes
+      // routes in reverse-registration order (last-in, first-matched), so two
+      // separate registrations (**/api/admin/votes then **/api/admin/**) would
+      // always have the catch-all win and return the wrong shape, causing a
+      // Svelte rendering crash (data.candidates is undefined).
       await page.route('**/api/admin/**', async (route) => {
-        await route.fulfill({ json: { message: 'ok' } });
+        if (route.request().url().includes('/admin/votes')) {
+          await route.fulfill({ json: adminVotesFixture });
+        } else {
+          await route.fulfill({ json: { message: 'ok' } });
+        }
       });
 
       if (process.env.LOCAL_MOCKS === '1') {
