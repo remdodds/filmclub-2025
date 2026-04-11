@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { db } from '../utils/db';
-import { hashPassword } from '../utils/auth';
+import { hashPassword, verifyPassword } from '../utils/auth';
 import { validatePassword } from '../utils/auth.logic';
 
 /**
@@ -241,6 +241,62 @@ export async function updateVotingSchedule(req: Request, res: Response): Promise
     });
   } catch (error) {
     console.error('Update voting schedule error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /admin/change-password
+ * Change the club password (admin only)
+ *
+ * Request body:
+ * {
+ *   currentPassword: string,
+ *   newPassword: string
+ * }
+ *
+ * Response:
+ * {
+ *   success: true
+ * }
+ */
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Missing required fields: currentPassword, newPassword' });
+      return;
+    }
+
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(404).json({ error: 'Club not configured.' });
+      return;
+    }
+
+    const data = configDoc.data()!;
+    const isValid = await verifyPassword(currentPassword, data.passwordHash);
+    if (!isValid) {
+      res.status(401).json({ error: 'Current password is incorrect.' });
+      return;
+    }
+
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      res.status(400).json({ error: passwordValidation.error });
+      return;
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await db.collection('config').doc('club').update({
+      passwordHash,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

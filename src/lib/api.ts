@@ -201,5 +201,17 @@ export const api = {
       body: JSON.stringify({ winnerTitle }),
     });
     return handleResponse(res);
+  },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    const res = await fetch(`${API_BASE}/admin/change-password`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return handleResponse(res);
   }
 };

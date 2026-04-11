@@ -78,6 +78,14 @@
   let deletingRoundId: string | null = null;
   let deleteError = '';
 
+  // Change password state
+  let currentPassword = '';
+  let newPassword = '';
+  let confirmNewPassword = '';
+  let changingPassword = false;
+  let changePasswordResult = '';
+  let changePasswordError = '';
+
   onMount(async () => {
     auth.init();
     const state = get(auth);
@@ -229,6 +237,27 @@
       deleteError = err instanceof Error ? err.message : 'Failed to delete';
     } finally {
       deletingRoundId = null;
+    }
+  }
+
+  async function handleChangePassword() {
+    changePasswordError = '';
+    changePasswordResult = '';
+    if (newPassword !== confirmNewPassword) {
+      changePasswordError = 'New passwords do not match.';
+      return;
+    }
+    changingPassword = true;
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      changePasswordResult = 'Password changed successfully.';
+      currentPassword = '';
+      newPassword = '';
+      confirmNewPassword = '';
+    } catch (err) {
+      changePasswordError = err instanceof Error ? err.message : 'Failed to change password';
+    } finally {
+      changingPassword = false;
     }
   }
 
@@ -546,6 +575,83 @@
         </div>
 
       {/if}
+
+      <!-- Change Club Password -->
+      <div class="card shadow-xl border border-base-300/20 mt-6" style="background-color: #1A1A1A;">
+        <div class="card-body">
+          <h2 class="card-title text-xl mb-1">Change Club Password</h2>
+          <p class="text-base-content/50 text-sm mb-4">Update the password members use to log in.</p>
+
+          {#if changePasswordResult}
+            <div class="alert alert-success mb-3">
+              <span>{changePasswordResult}</span>
+            </div>
+          {/if}
+          {#if changePasswordError}
+            <div class="alert alert-error mb-3">
+              <span>{changePasswordError}</span>
+            </div>
+          {/if}
+
+          <form on:submit|preventDefault={handleChangePassword} class="flex flex-col gap-3 max-w-sm">
+            <div>
+              <label class="label pb-1" for="currentPassword">
+                <span class="label-text text-base-content/70 text-xs uppercase tracking-wide">Current password</span>
+              </label>
+              <input
+                id="currentPassword"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                bind:value={currentPassword}
+                disabled={changingPassword}
+                required
+              />
+            </div>
+            <div>
+              <label class="label pb-1" for="newPassword">
+                <span class="label-text text-base-content/70 text-xs uppercase tracking-wide">New password</span>
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                bind:value={newPassword}
+                disabled={changingPassword}
+                required
+                minlength="8"
+              />
+            </div>
+            <div>
+              <label class="label pb-1" for="confirmNewPassword">
+                <span class="label-text text-base-content/70 text-xs uppercase tracking-wide">Confirm new password</span>
+              </label>
+              <input
+                id="confirmNewPassword"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                bind:value={confirmNewPassword}
+                disabled={changingPassword}
+                required
+                minlength="8"
+              />
+            </div>
+            <div class="mt-1">
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm"
+                disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
+              >
+                {#if changingPassword}
+                  <span class="loading loading-spinner loading-xs"></span>
+                  Changing...
+                {:else}
+                  Change Password
+                {/if}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Voting History Management -->
       <div class="card shadow-xl border border-base-300/20 mt-6" style="background-color: #1A1A1A;">

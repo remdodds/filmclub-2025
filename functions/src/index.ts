@@ -97,6 +97,7 @@ app.post('/admin/select-winner', authMiddleware, adminMiddleware, adminApi.selec
 app.delete('/admin/clear-films', authMiddleware, adminMiddleware, adminApi.clearNominatedFilms);
 app.delete('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.deleteHistoryRecord);
 app.patch('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.updateHistoryRecord);
+app.put('/admin/change-password', authMiddleware, adminMiddleware, configApi.changePassword);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);
