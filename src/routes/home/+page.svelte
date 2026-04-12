@@ -14,11 +14,13 @@
   let isAdmin = false;
   let logoutLoading = false;
   let mounted = false;
+  let clubName = 'Film Club';
   let lastWinner: VotingHistoryRecord | null = null;
   let winnerStreaming: StreamingService[] | undefined = undefined;
 
   onMount(async () => {
     auth.init();
+    api.getConfig().then(r => { if (r.config?.clubName) clubName = r.config.clubName; }).catch(() => {});
     auth.subscribe(state => {
       isLoggedIn = state.isLoggedIn;
       isAdmin = state.isAdmin;
@@ -72,7 +74,7 @@
           Now Showing
         </div>
         <h1 class="text-headline gold-shimmer mb-4">
-          Film Club
+          {clubName}
         </h1>
         <div class="text-subtitle opacity-80">
           What would you like to do?
@@ -248,7 +250,7 @@
               <h2 class="text-title mb-2" style="color: var(--accent-red);">
                 {logoutLoading ? 'Exiting...' : 'Exit'}
               </h2>
-              <p class="text-small opacity-70">Sign out of Film Club</p>
+              <p class="text-small opacity-70">Sign out of {clubName}</p>
             </div>
           </CinemaCard>
         </div>
