@@ -67,6 +67,9 @@ jobs:
         if: steps.changes.outputs.functions == 'true' || github.event_name == 'workflow_dispatch'
         run: cd functions && npm run build
 
+      - name: Write functions env
+        run: echo "E2E_TEST_MODE=true" > functions/.env
+
       - name: Deploy to Firebase
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
@@ -128,7 +131,6 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          E2E_CLUB_PASSWORD: ${{ secrets.E2E_CLUB_PASSWORD }}
 
       - name: Upload Playwright report
         if: always()
