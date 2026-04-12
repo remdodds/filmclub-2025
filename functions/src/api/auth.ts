@@ -120,8 +120,6 @@ export async function loginWithGoogle(req: Request, res: Response): Promise<void
       return;
     }
 
-    const e2eTestMode = process.env.E2E_TEST_MODE === 'true';
-
     // Verify club password against stored hash
     const configDoc = await db.collection('config').doc('club').get();
     if (!configDoc.exists) {
@@ -130,13 +128,10 @@ export async function loginWithGoogle(req: Request, res: Response): Promise<void
     }
 
     const config = configDoc.data()!;
-    // Skip bcrypt check in E2E test mode. NEVER set E2E_TEST_MODE in production.
-    if (!e2eTestMode) {
-      const isValidPassword = await verifyPassword(password, config.passwordHash);
-      if (!isValidPassword) {
-        res.status(401).json({ error: 'Invalid password' });
-        return;
-      }
+    const isValidPassword = await verifyPassword(password, config.passwordHash);
+    if (!isValidPassword) {
+      res.status(401).json({ error: 'Invalid password' });
+      return;
     }
 
     // Verify the Firebase ID token using the Admin SDK
