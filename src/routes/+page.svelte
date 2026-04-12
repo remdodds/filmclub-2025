@@ -15,10 +15,12 @@
   let loading = false;
   let mounted = false;
   let pendingIdToken: string | null = null;
+  let clubName = 'Film Club';
 
-  onMount(() => {
+  onMount(async () => {
     auth.init();
     mounted = true;
+    api.getConfig().then(r => { if (r.config?.clubName) clubName = r.config.clubName; }).catch(() => {});
   });
 
   async function handleGoogleLogin() {
@@ -69,7 +71,7 @@
             Now Showing
           </div>
           <h1 class="text-display gold-shimmer mb-4" style="text-shadow: 0 0 40px rgba(212, 175, 55, 0.3);">
-            Film Club
+            {clubName}
           </h1>
           <div class="text-subtitle opacity-80">
             {#if pendingIdToken}
