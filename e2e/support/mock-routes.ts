@@ -13,6 +13,7 @@ const filmsHistoryFixture = require('../fixtures/films-history.json');
 const votesCurrentFixture = require('../fixtures/votes-current.json');
 const historyFixture = require('../fixtures/history.json');
 const adminVotesFixture = require('../fixtures/admin-votes.json');
+const configFixture = require('../fixtures/config.json');
 
 /**
  * Installs page.route() interceptors for every backend endpoint the app calls.
@@ -91,6 +92,11 @@ export async function installMockRoutes(page: Page): Promise<void> {
       await route.fulfill({ json: { message: 'ok' } });
     }
   });
+
+  // ── Config ───────────────────────────────────────────────────────────────
+  await page.route('**/api/config', (route) =>
+    route.fulfill({ json: configFixture })
+  );
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   // /auth/check — must come before /auth/**
