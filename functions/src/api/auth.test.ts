@@ -461,4 +461,56 @@ describe('loginWithGoogle', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('skips bcrypt verification and succeeds in E2E test mode', async () => {
+    // Arrange
+    process.env.E2E_TEST_MODE = 'true';
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockGetAuth.mockReturnValue({ verifyIdToken: mockVerifyIdToken });
+    mockVerifyIdToken.mockResolvedValue({ uid: 'firebase-uid-abc' });
+    mockCreateSession.mockResolvedValue('new-session-token');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockVerifyPassword).not.toHaveBeenCalled();
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionToken: 'new-session-token' })
+    );
+
+    // Restore
+    delete process.env.E2E_TEST_MODE;
+  });
+
+  it('still calls verifyPassword and returns 401 when E2E_TEST_MODE is NOT set', async () => {
+    // Arrange
+    delete process.env.E2E_TEST_MODE;
+    mockValidatePasswordLogic.mockReturnValue({ isValid: true });
+    const mockDocGet = jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({ passwordHash: 'hashed-password' }),
+    });
+    const mockDoc = jest.fn().mockReturnValue({ get: mockDocGet });
+    const mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    mockDb.collection = mockCollection;
+    mockVerifyPassword.mockResolvedValue(false);
+
+    // Act
+    await loginWithGoogle(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockVerifyPassword).toHaveBeenCalled();
+    expect(mockStatus).toHaveBeenCalledWith(401);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid password' });
+  });
 });

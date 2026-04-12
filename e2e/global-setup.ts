@@ -42,13 +42,12 @@ export default async function globalSetup() {
   const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
   const testEmail = process.env.E2E_TEST_EMAIL;
   const testPassword = process.env.E2E_TEST_PASSWORD;
-  const clubPassword = process.env.E2E_CLUB_PASSWORD;
 
   fs.mkdirSync(authDir, { recursive: true });
 
-  if (!firebaseApiKey || !testEmail || !testPassword || !clubPassword) {
+  if (!firebaseApiKey || !testEmail || !testPassword) {
     console.warn(
-      'Missing E2E auth env vars (VITE_FIREBASE_API_KEY, E2E_TEST_EMAIL, E2E_TEST_PASSWORD, E2E_CLUB_PASSWORD).\n' +
+      'Missing E2E auth env vars (VITE_FIREBASE_API_KEY, E2E_TEST_EMAIL, E2E_TEST_PASSWORD).\n' +
       'Authenticated tests will be skipped or fail.'
     );
     fs.writeFileSync(authFile, JSON.stringify({ cookies: [], origins: [] }));
@@ -57,7 +56,7 @@ export default async function globalSetup() {
 
   // Get a fresh Firebase ID token on every run — no expiry concerns
   const idToken = await getFirebaseIdToken(firebaseApiKey, testEmail, testPassword);
-  const { sessionToken, visitorId, isAdmin } = await getSessionToken(idToken, clubPassword);
+  const { sessionToken, visitorId, isAdmin } = await getSessionToken(idToken, 'e2e-bypass');
 
   // Inject into browser localStorage and save storageState
   const browser = await chromium.launch();
