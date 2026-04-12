@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import { setupClub, getConfig, updateVotingSchedule, changePassword } from './config';
+import { setupClub, getConfig, updateVotingSchedule, changePassword, updateClubName } from './config';
 
 // Mock all dependencies
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
@@ -651,6 +651,101 @@ describe('changePassword', () => {
 
     // Act
     await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('updateClubName', () => {
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let mockJson: jest.Mock;
+  let mockStatus: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockUpdate: jest.Mock;
+  let mockDoc: jest.Mock;
+  let mockCollection: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockJson = jest.fn();
+    mockStatus = jest.fn().mockReturnThis();
+    mockResponse = { status: mockStatus, json: mockJson };
+
+    mockUpdate = jest.fn().mockResolvedValue(undefined);
+    mockGet = jest.fn();
+    mockDoc = jest.fn().mockReturnValue({ get: mockGet, update: mockUpdate });
+    mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    (mockDb.collection as jest.Mock).mockImplementation(mockCollection);
+  });
+
+  it('returns 400 when clubName is missing from body', async () => {
+    // Arrange
+    mockRequest = { body: {} };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required field: clubName' });
+  });
+
+  it('returns 400 when clubName is an empty string', async () => {
+    // Arrange
+    mockRequest = { body: { clubName: '   ' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required field: clubName' });
+  });
+
+  it('returns 404 when club is not configured', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: false });
+    mockRequest = { body: { clubName: 'New Club Name' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(404);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured.' });
+  });
+
+  it('returns 200 with success and trimmed clubName on success', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { clubName: '  My New Club  ' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({
+      clubName: 'My New Club',
+      updatedAt: expect.any(Date),
+    });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({ success: true, clubName: 'My New Club' });
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    // Arrange
+    mockGet.mockRejectedValue(new Error('Firestore unavailable'));
+    mockRequest = { body: { clubName: 'Test Club' } };
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
 
     // Assert
     expect(mockStatus).toHaveBeenCalledWith(500);

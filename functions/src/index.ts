@@ -32,7 +32,7 @@ app.use(express.json());
 // CORS middleware (allow all origins for now - restrict in production)
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -98,6 +98,7 @@ app.delete('/admin/clear-films', authMiddleware, adminMiddleware, adminApi.clear
 app.delete('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.deleteHistoryRecord);
 app.patch('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.updateHistoryRecord);
 app.put('/admin/change-password', authMiddleware, adminMiddleware, configApi.changePassword);
+app.patch('/admin/club-name', authMiddleware, adminMiddleware, configApi.updateClubName);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);
