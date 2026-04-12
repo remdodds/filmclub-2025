@@ -77,4 +77,20 @@ test.describe('Admin panel', () => {
     await page.locator('#confirmNewPassword').fill('NewPass123!');
     await expect(page.getByRole('button', { name: 'Change Password' })).toBeEnabled();
   });
+
+  test('shows the Change Club Name section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Change Club Name' })).toBeVisible();
+  });
+
+  test('Save Club Name button is disabled when field is empty', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Save Club Name' })).toBeDisabled();
+  });
+
+  test('Save Club Name button enables when a name is entered', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await page.locator('#newClubName').fill('New Club Name');
+    await expect(page.getByRole('button', { name: 'Save Club Name' })).toBeEnabled();
+  });
 });

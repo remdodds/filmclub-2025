@@ -125,10 +125,6 @@ jobs:
         run: npm run test:e2e
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          E2E_CLUB_PASSWORD: ${{ secrets.E2E_CLUB_PASSWORD }}
 
       - name: Upload Playwright report
         if: always()
