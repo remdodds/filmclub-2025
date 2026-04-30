@@ -93,4 +93,24 @@ test.describe('Admin panel', () => {
     await page.locator('#newClubName').fill('New Club Name');
     await expect(page.getByRole('button', { name: 'Save Club Name' })).toBeEnabled();
   });
+
+  test('shows the Voting Schedule section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Voting Schedule' })).toBeVisible();
+  });
+
+  test('voting schedule section has open and close day selects and time inputs', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    const scheduleCard = page.locator('.card', { hasText: 'Voting Schedule' });
+    await expect(scheduleCard.locator('select').first()).toBeVisible();
+    await expect(scheduleCard.locator('input[type="time"]').first()).toBeVisible();
+    await expect(scheduleCard.locator('select').nth(1)).toBeVisible();
+    await expect(scheduleCard.locator('input[type="time"]').nth(1)).toBeVisible();
+  });
+
+  test('Save Schedule button is visible and enabled', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Save Schedule' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save Schedule' })).toBeEnabled();
+  });
 });

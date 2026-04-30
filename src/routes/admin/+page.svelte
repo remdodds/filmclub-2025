@@ -78,6 +78,18 @@
   let deletingRoundId: string | null = null;
   let deleteError = '';
 
+  // Voting schedule state
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  interface VotingSchedule { openDay: number; openTime: string; closeDay: number; closeTime: string; }
+  let currentSchedule: VotingSchedule | null = null;
+  let scheduleOpenDay = 5;
+  let scheduleOpenTime = '18:00';
+  let scheduleCloseDay = 6;
+  let scheduleCloseTime = '20:00';
+  let savingSchedule = false;
+  let saveScheduleResult = '';
+  let saveScheduleError = '';
+
   // Change club name state
   let currentClubName = '';
   let newClubName = '';
@@ -113,6 +125,13 @@
     try {
       const configResult = await api.getConfig();
       currentClubName = configResult.config?.clubName ?? '';
+      if (configResult.config?.votingSchedule) {
+        currentSchedule = configResult.config.votingSchedule;
+        scheduleOpenDay = currentSchedule.openDay;
+        scheduleOpenTime = currentSchedule.openTime;
+        scheduleCloseDay = currentSchedule.closeDay;
+        scheduleCloseTime = currentSchedule.closeTime;
+      }
     } catch {
       // non-fatal
     }
@@ -271,6 +290,26 @@
       changePasswordError = err instanceof Error ? err.message : 'Failed to change password';
     } finally {
       changingPassword = false;
+    }
+  }
+
+  async function handleSaveSchedule() {
+    saveScheduleError = '';
+    saveScheduleResult = '';
+    savingSchedule = true;
+    try {
+      await api.updateVotingSchedule({
+        openDay: scheduleOpenDay,
+        openTime: scheduleOpenTime,
+        closeDay: scheduleCloseDay,
+        closeTime: scheduleCloseTime,
+      });
+      currentSchedule = { openDay: scheduleOpenDay, openTime: scheduleOpenTime, closeDay: scheduleCloseDay, closeTime: scheduleCloseTime };
+      saveScheduleResult = 'Voting schedule updated successfully.';
+    } catch (err) {
+      saveScheduleError = err instanceof Error ? err.message : 'Failed to update schedule';
+    } finally {
+      savingSchedule = false;
     }
   }
 
@@ -731,6 +770,90 @@
                   Changing...
                 {:else}
                   Change Password
+                {/if}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Voting Schedule -->
+      <div class="card shadow-xl border border-base-300/20 mt-6" style="background-color: #1A1A1A;">
+        <div class="card-body">
+          <h2 class="card-title text-xl mb-1">Voting Schedule</h2>
+          <p class="text-base-content/50 text-sm mb-4">
+            Set when voting rounds automatically open and close each week.
+            {#if currentSchedule}
+              Currently: opens <span class="text-base-content/80">{DAY_NAMES[currentSchedule.openDay]} at {currentSchedule.openTime}</span>,
+              closes <span class="text-base-content/80">{DAY_NAMES[currentSchedule.closeDay]} at {currentSchedule.closeTime}</span>.
+            {/if}
+          </p>
+
+          {#if saveScheduleResult}
+            <div class="alert alert-success mb-3">
+              <span>{saveScheduleResult}</span>
+            </div>
+          {/if}
+          {#if saveScheduleError}
+            <div class="alert alert-error mb-3">
+              <span>{saveScheduleError}</span>
+            </div>
+          {/if}
+
+          <form on:submit|preventDefault={handleSaveSchedule} class="flex flex-col gap-4 max-w-sm">
+            <div>
+              <p class="label-text text-base-content/70 text-xs uppercase tracking-wide mb-2">Opens</p>
+              <div class="flex gap-2">
+                <select
+                  class="select select-bordered select-sm flex-1"
+                  bind:value={scheduleOpenDay}
+                  disabled={savingSchedule}
+                >
+                  {#each DAY_NAMES as name, i}
+                    <option value={i}>{name}</option>
+                  {/each}
+                </select>
+                <input
+                  type="time"
+                  class="input input-bordered input-sm w-32"
+                  bind:value={scheduleOpenTime}
+                  disabled={savingSchedule}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <p class="label-text text-base-content/70 text-xs uppercase tracking-wide mb-2">Closes</p>
+              <div class="flex gap-2">
+                <select
+                  class="select select-bordered select-sm flex-1"
+                  bind:value={scheduleCloseDay}
+                  disabled={savingSchedule}
+                >
+                  {#each DAY_NAMES as name, i}
+                    <option value={i}>{name}</option>
+                  {/each}
+                </select>
+                <input
+                  type="time"
+                  class="input input-bordered input-sm w-32"
+                  bind:value={scheduleCloseTime}
+                  disabled={savingSchedule}
+                  required
+                />
+              </div>
+            </div>
+            <div class="mt-1">
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm"
+                disabled={savingSchedule}
+              >
+                {#if savingSchedule}
+                  <span class="loading loading-spinner loading-xs"></span>
+                  Saving...
+                {:else}
+                  Save Schedule
                 {/if}
               </button>
             </div>
