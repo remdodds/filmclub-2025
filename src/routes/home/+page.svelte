@@ -18,9 +18,20 @@
   let lastWinner: VotingHistoryRecord | null = null;
   let winnerStreaming: StreamingService[] | undefined = undefined;
 
+  function getNextOccurrenceAfter(baseDate: Date, day: number, time: string): Date {
+    const [hours, minutes] = time.split(':').map(Number);
+    const result = new Date(baseDate);
+    result.setHours(hours, minutes, 0, 0);
+    let daysAhead = day - result.getDay();
+    if (daysAhead < 0 || (daysAhead === 0 && result <= baseDate)) {
+      daysAhead += 7;
+    }
+    result.setDate(result.getDate() + daysAhead);
+    return result;
+  }
+
   onMount(async () => {
     auth.init();
-    api.getConfig().then(r => { if (r.config?.clubName) clubName = r.config.clubName; }).catch(() => {});
     auth.subscribe(state => {
       isLoggedIn = state.isLoggedIn;
       isAdmin = state.isAdmin;
@@ -29,14 +40,33 @@
       }
     });
 
+    let winnerDisplayEndDay: number | null = null;
+    let winnerDisplayEndTime: string | null = null;
+    try {
+      const configResult = await api.getConfig();
+      if (configResult.config?.clubName) clubName = configResult.config.clubName;
+      const vs = configResult.config?.votingSchedule;
+      if (vs?.winnerDisplayEndDay != null && vs?.winnerDisplayEndTime) {
+        winnerDisplayEndDay = vs.winnerDisplayEndDay;
+        winnerDisplayEndTime = vs.winnerDisplayEndTime;
+      }
+    } catch {}
+
     try {
       const data = await api.getVotingHistory(1);
       const latest = data.history?.[0];
       if (latest?.winner) {
-        lastWinner = latest;
-        api.getStreamingAvailability(latest.winner.filmId)
-          .then(res => { winnerStreaming = res.services; })
-          .catch(() => { winnerStreaming = []; });
+        let showWinner = true;
+        if (winnerDisplayEndDay != null && winnerDisplayEndTime) {
+          const endTime = getNextOccurrenceAfter(new Date(latest.closedAt), winnerDisplayEndDay, winnerDisplayEndTime);
+          showWinner = new Date() < endTime;
+        }
+        if (showWinner) {
+          lastWinner = latest;
+          api.getStreamingAvailability(latest.winner.filmId)
+            .then(res => { winnerStreaming = res.services; })
+            .catch(() => { winnerStreaming = []; });
+        }
       }
     } catch {
       // Non-critical - home page still works without this

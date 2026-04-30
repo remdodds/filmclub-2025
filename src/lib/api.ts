@@ -232,6 +232,8 @@ export const api = {
     openTime: string;
     closeDay: number;
     closeTime: string;
+    winnerDisplayEndDay?: number | null;
+    winnerDisplayEndTime?: string | null;
   }) {
     const res = await fetch(`${API_BASE}/config/voting-schedule`, {
       method: 'PUT',

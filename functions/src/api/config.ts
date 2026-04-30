@@ -20,6 +20,8 @@ export interface ClubConfig {
     openTime: string; // HH:mm format
     closeDay: number; // 0-6 (Sunday-Saturday)
     closeTime: string; // HH:mm format
+    winnerDisplayEndDay?: number | null; // 0-6 (Sunday-Saturday), optional
+    winnerDisplayEndTime?: string | null; // HH:mm format, optional
   };
 }
 
@@ -217,6 +219,28 @@ export async function updateVotingSchedule(req: Request, res: Response): Promise
         error: 'Invalid time format. Use HH:mm (e.g., "18:00")',
       });
       return;
+    }
+
+    // Validate optional winner display end fields
+    const hasEndDay = votingSchedule.winnerDisplayEndDay != null;
+    const hasEndTime = votingSchedule.winnerDisplayEndTime != null;
+    if (hasEndDay !== hasEndTime) {
+      res.status(400).json({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+      return;
+    }
+    if (hasEndDay) {
+      if (
+        typeof votingSchedule.winnerDisplayEndDay !== 'number' ||
+        votingSchedule.winnerDisplayEndDay < 0 ||
+        votingSchedule.winnerDisplayEndDay > 6
+      ) {
+        res.status(400).json({ error: 'Invalid winnerDisplayEndDay. Must be 0-6 (Sunday-Saturday)' });
+        return;
+      }
+      if (!timeRegex.test(votingSchedule.winnerDisplayEndTime as string)) {
+        res.status(400).json({ error: 'Invalid winnerDisplayEndTime format. Use HH:mm (e.g., "21:00")' });
+        return;
+      }
     }
 
     // Update voting schedule
