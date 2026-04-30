@@ -225,5 +225,22 @@ export const api = {
       body: JSON.stringify({ clubName }),
     });
     return handleResponse(res);
+  },
+
+  async updateVotingSchedule(votingSchedule: {
+    openDay: number;
+    openTime: string;
+    closeDay: number;
+    closeTime: string;
+  }) {
+    const res = await fetch(`${API_BASE}/config/voting-schedule`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ votingSchedule }),
+    });
+    return handleResponse(res);
   }
 };
