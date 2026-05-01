@@ -80,12 +80,15 @@
 
   // Voting schedule state
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  interface VotingSchedule { openDay: number; openTime: string; closeDay: number; closeTime: string; }
+  interface VotingSchedule { openDay: number; openTime: string; closeDay: number; closeTime: string; winnerDisplayEndDay?: number | null; winnerDisplayEndTime?: string | null; }
   let currentSchedule: VotingSchedule | null = null;
   let scheduleOpenDay = 5;
   let scheduleOpenTime = '18:00';
   let scheduleCloseDay = 6;
   let scheduleCloseTime = '20:00';
+  let scheduleWinnerEndEnabled = false;
+  let scheduleWinnerEndDay = 1;
+  let scheduleWinnerEndTime = '21:00';
   let savingSchedule = false;
   let saveScheduleResult = '';
   let saveScheduleError = '';
@@ -131,6 +134,11 @@
         scheduleOpenTime = currentSchedule.openTime;
         scheduleCloseDay = currentSchedule.closeDay;
         scheduleCloseTime = currentSchedule.closeTime;
+        if (currentSchedule.winnerDisplayEndDay != null && currentSchedule.winnerDisplayEndTime) {
+          scheduleWinnerEndEnabled = true;
+          scheduleWinnerEndDay = currentSchedule.winnerDisplayEndDay;
+          scheduleWinnerEndTime = currentSchedule.winnerDisplayEndTime;
+        }
       }
     } catch {
       // non-fatal
@@ -303,8 +311,15 @@
         openTime: scheduleOpenTime,
         closeDay: scheduleCloseDay,
         closeTime: scheduleCloseTime,
+        winnerDisplayEndDay: scheduleWinnerEndEnabled ? scheduleWinnerEndDay : null,
+        winnerDisplayEndTime: scheduleWinnerEndEnabled ? scheduleWinnerEndTime : null,
       });
-      currentSchedule = { openDay: scheduleOpenDay, openTime: scheduleOpenTime, closeDay: scheduleCloseDay, closeTime: scheduleCloseTime };
+      currentSchedule = {
+        openDay: scheduleOpenDay, openTime: scheduleOpenTime,
+        closeDay: scheduleCloseDay, closeTime: scheduleCloseTime,
+        winnerDisplayEndDay: scheduleWinnerEndEnabled ? scheduleWinnerEndDay : null,
+        winnerDisplayEndTime: scheduleWinnerEndEnabled ? scheduleWinnerEndTime : null,
+      };
       saveScheduleResult = 'Voting schedule updated successfully.';
     } catch (err) {
       saveScheduleError = err instanceof Error ? err.message : 'Failed to update schedule';
@@ -786,6 +801,9 @@
             {#if currentSchedule}
               Currently: opens <span class="text-base-content/80">{DAY_NAMES[currentSchedule.openDay]} at {currentSchedule.openTime}</span>,
               closes <span class="text-base-content/80">{DAY_NAMES[currentSchedule.closeDay]} at {currentSchedule.closeTime}</span>.
+              {#if currentSchedule.winnerDisplayEndDay != null && currentSchedule.winnerDisplayEndTime}
+                Winner shown until <span class="text-base-content/80">{DAY_NAMES[currentSchedule.winnerDisplayEndDay!]} at {currentSchedule.winnerDisplayEndTime}</span>.
+              {/if}
             {/if}
           </p>
 
@@ -842,6 +860,40 @@
                   required
                 />
               </div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  id="winnerEndEnabled"
+                  bind:checked={scheduleWinnerEndEnabled}
+                  disabled={savingSchedule}
+                />
+                <label for="winnerEndEnabled" class="label-text text-base-content/70 text-xs uppercase tracking-wide cursor-pointer">
+                  Show Winner Until (optional)
+                </label>
+              </div>
+              {#if scheduleWinnerEndEnabled}
+                <div class="flex gap-2">
+                  <select
+                    class="select select-bordered select-sm flex-1"
+                    bind:value={scheduleWinnerEndDay}
+                    disabled={savingSchedule}
+                  >
+                    {#each DAY_NAMES as name, i}
+                      <option value={i}>{name}</option>
+                    {/each}
+                  </select>
+                  <input
+                    type="time"
+                    class="input input-bordered input-sm w-32"
+                    bind:value={scheduleWinnerEndTime}
+                    disabled={savingSchedule}
+                    required
+                  />
+                </div>
+              {/if}
             </div>
             <div class="mt-1">
               <button

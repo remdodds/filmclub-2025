@@ -522,6 +522,100 @@ describe('updateVotingSchedule', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('returns 400 when only winnerDisplayEndDay is set without winnerDisplayEndTime', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 1 } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+  });
+
+  it('returns 400 when only winnerDisplayEndTime is set without winnerDisplayEndDay', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndTime: '21:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+  });
+
+  it('returns 400 when winnerDisplayEndDay is out of range', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 7, winnerDisplayEndTime: '21:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid winnerDisplayEndDay. Must be 0-6 (Sunday-Saturday)' });
+  });
+
+  it('returns 400 when winnerDisplayEndTime has invalid format', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 1, winnerDisplayEndTime: '9:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid winnerDisplayEndTime format. Use HH:mm (e.g., "21:00")' });
+  });
+
+  it('updates successfully with winnerDisplayEndDay and winnerDisplayEndTime set', async () => {
+    // Arrange
+    const scheduleWithEnd = { ...validSchedule, winnerDisplayEndDay: 1, winnerDisplayEndTime: '21:00' };
+    const updatedData = { ...storedData, votingSchedule: scheduleWithEnd };
+
+    mockGet
+      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({ exists: true, data: () => updatedData });
+
+    mockRequest = { body: { votingSchedule: scheduleWithEnd } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({ votingSchedule: scheduleWithEnd, updatedAt: expect.any(Date) });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({
+      success: true,
+      config: { clubName: storedData.clubName, timezone: storedData.timezone, votingSchedule: scheduleWithEnd },
+    });
+  });
+
+  it('updates successfully clearing winnerDisplayEnd fields with null values', async () => {
+    // Arrange
+    const scheduleWithNull = { ...validSchedule, winnerDisplayEndDay: null, winnerDisplayEndTime: null };
+    const updatedData = { ...storedData, votingSchedule: scheduleWithNull };
+
+    mockGet
+      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({ exists: true, data: () => updatedData });
+
+    mockRequest = { body: { votingSchedule: scheduleWithNull } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({ votingSchedule: scheduleWithNull, updatedAt: expect.any(Date) });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+  });
 });
 
 describe('changePassword', () => {

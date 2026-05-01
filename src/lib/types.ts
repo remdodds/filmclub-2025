@@ -45,6 +45,8 @@ export interface Config {
     openTime: string;
     closeDay: number;
     closeTime: string;
+    winnerDisplayEndDay?: number | null;
+    winnerDisplayEndTime?: string | null;
   };
 }
 
