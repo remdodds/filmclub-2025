@@ -27,12 +27,12 @@ jest.mock('./api/votes', () => ({ getCurrentVoting: jest.fn(), submitVote: jest.
 jest.mock('./api/config', () => ({ getConfig: jest.fn(), setupClub: jest.fn(), updateVotingSchedule: jest.fn(), changePassword: jest.fn(), updateClubName: jest.fn() }));
 jest.mock('./api/history', () => ({ getHistory: jest.fn() }));
 jest.mock('./api/admin', () => ({ getAdminVotes: jest.fn(), openRound: jest.fn(), selectWinner: jest.fn(), clearNominatedFilms: jest.fn(), deleteHistoryRecord: jest.fn(), updateHistoryRecord: jest.fn() }));
-jest.mock('./scheduled/openVoting', () => ({ openVotingRound: jest.fn() }));
+jest.mock('./scheduled/openVoting', () => ({ openVotingRound: jest.fn(), tryOpenVotingRound: jest.fn() }));
 jest.mock('./scheduled/closeVoting', () => ({ closeVotingRound: jest.fn() }));
 
 import { validateSession, isAdminUser } from './utils/auth';
 import * as filmsApi from './api/films';
-import { openVotingRound } from './scheduled/openVoting';
+import { openVotingRound, tryOpenVotingRound } from './scheduled/openVoting';
 import { closeVotingRound } from './scheduled/closeVoting';
 
 const mockValidateSession = validateSession as jest.Mock;
@@ -320,15 +320,15 @@ describe('POST /test/close-voting', () => {
 // ---------------------------------------------------------------------------
 
 describe('openVoting scheduled handler', () => {
-  it('calls openVotingRound when the scheduled handler is invoked', async () => {
+  it('calls tryOpenVotingRound when the scheduled handler is invoked', async () => {
     // Arrange
-    (openVotingRound as jest.Mock).mockResolvedValue(undefined);
+    (tryOpenVotingRound as jest.Mock).mockResolvedValue(undefined);
 
     // Act — indexModule.openVoting is the handler function (onSchedule mock returns the handler)
     await indexModule.openVoting();
 
     // Assert
-    expect(openVotingRound).toHaveBeenCalled();
+    expect(tryOpenVotingRound).toHaveBeenCalled();
   });
 });
 

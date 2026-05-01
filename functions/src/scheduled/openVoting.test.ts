@@ -1,4 +1,5 @@
-import { openVotingRound } from './openVoting';
+import { DateTime } from 'luxon';
+import { openVotingRound, shouldOpenVoting, tryOpenVotingRound } from './openVoting';
 import { db } from '../utils/db';
 
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
@@ -7,9 +8,6 @@ jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Build a minimal Firestore QuerySnapshot stub.
- */
 function makeQuerySnapshot(docs: object[], empty?: boolean) {
   return {
     empty: empty !== undefined ? empty : docs.length === 0,
@@ -18,9 +16,6 @@ function makeQuerySnapshot(docs: object[], empty?: boolean) {
   };
 }
 
-/**
- * Build a minimal Firestore DocumentSnapshot stub.
- */
 function makeDocSnapshot(exists: boolean, data?: object) {
   return {
     exists,
@@ -28,21 +23,15 @@ function makeDocSnapshot(exists: boolean, data?: object) {
   };
 }
 
-/**
- * Standard config used across tests unless overridden.
- */
 const DEFAULT_CONFIG = {
   votingSchedule: {
-    closeDay: 5, // Friday
+    openDay: 5,   // Friday
+    openTime: '18:00',
+    closeDay: 6,  // Saturday
     closeTime: '20:00',
   },
 };
 
-/**
- * Wire up (db.collection as jest.Mock) so that all three top-level paths
- * (votingRounds, films, config) return sensible defaults.  Individual tests
- * pass overrides for the fields they care about.
- */
 interface SetupOptions {
   openRoundsEmpty?: boolean;
   nominatedFilmsEmpty?: boolean;
@@ -50,7 +39,7 @@ interface SetupOptions {
   configExists?: boolean;
   configData?: object;
   mockSet?: jest.Mock;
-  mockDocFn?: jest.Mock; // override the .doc() factory for votingRounds
+  mockDocFn?: jest.Mock;
 }
 
 function setupMocks(opts: SetupOptions = {}) {
@@ -64,7 +53,6 @@ function setupMocks(opts: SetupOptions = {}) {
     mockDocFn,
   } = opts;
 
-  // doc() stub used when creating the new round
   const defaultDocStub = {
     id: 'new-round-id',
     set: mockSet,
@@ -109,7 +97,7 @@ function setupMocks(opts: SetupOptions = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// openVotingRound — early-exit guard conditions
 // ---------------------------------------------------------------------------
 
 describe('openVotingRound', () => {
@@ -117,40 +105,21 @@ describe('openVotingRound', () => {
     jest.clearAllMocks();
   });
 
-  // -------------------------------------------------------------------------
-  // Early-exit guard conditions
-  // -------------------------------------------------------------------------
-
   it('does nothing when a voting round is already open', async () => {
-    // Arrange – the open-rounds query returns a non-empty snapshot
     const { mockSet } = setupMocks({ openRoundsEmpty: false });
-
-    // Act
     await openVotingRound();
-
-    // Assert – no document should have been written
     expect(mockSet).not.toHaveBeenCalled();
   });
 
   it('does nothing when there are no nominated films', async () => {
-    // Arrange
     const { mockSet } = setupMocks({ nominatedFilmsEmpty: true, nominatedFilmsSize: 0 });
-
-    // Act
     await openVotingRound();
-
-    // Assert
     expect(mockSet).not.toHaveBeenCalled();
   });
 
   it('does nothing when club config document does not exist', async () => {
-    // Arrange
     const { mockSet } = setupMocks({ configExists: false });
-
-    // Act
     await openVotingRound();
-
-    // Assert
     expect(mockSet).not.toHaveBeenCalled();
   });
 
@@ -159,39 +128,24 @@ describe('openVotingRound', () => {
   // -------------------------------------------------------------------------
 
   it('creates a voting round with the correct candidateCount', async () => {
-    // Arrange
     const { mockSet } = setupMocks({ nominatedFilmsSize: 5 });
-
-    // Act
     await openVotingRound();
-
-    // Assert
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ candidateCount: 5 })
     );
   });
 
   it('sets the voting round status to "open"', async () => {
-    // Arrange
     const { mockSet } = setupMocks();
-
-    // Act
     await openVotingRound();
-
-    // Assert
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'open' })
     );
   });
 
   it('includes openedAt and createdAt timestamps when creating the round', async () => {
-    // Arrange
     const { mockSet } = setupMocks();
-
-    // Act
     await openVotingRound();
-
-    // Assert
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
         openedAt: expect.any(Date),
@@ -201,79 +155,65 @@ describe('openVotingRound', () => {
   });
 
   // -------------------------------------------------------------------------
-  // calculateNextCloseTime – exercised via openVotingRound behavior
+  // calculateNextCloseTime — exercised via openVotingRound
   // -------------------------------------------------------------------------
 
   it('sets closesAt to the correct day of the week from votingSchedule.closeDay', async () => {
-    // Arrange – close on Saturday (day 6), time 18:30
-    // Use a fixed "now" on Monday 2026-03-16 (day 1) so we know the expected date.
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-03-16T10:00:00.000Z')); // Monday UTC
+    jest.setSystemTime(new Date('2026-03-16T10:00:00.000Z')); // Monday UTC (GMT period)
 
     const { mockSet } = setupMocks({
       configData: {
-        votingSchedule: { closeDay: 6, closeTime: '18:30' },
+        votingSchedule: { openDay: 1, openTime: '10:00', closeDay: 6, closeTime: '18:30' },
       },
     });
 
-    // Act
     await openVotingRound();
 
-    // Assert – from Monday the next Saturday is +5 days → 2026-03-21
     const callArg = mockSet.mock.calls[0][0];
     const closesAt: Date = callArg.closesAt;
     expect(closesAt.getDay()).toBe(6); // Saturday
-    expect(closesAt.getHours()).toBe(18);
-    expect(closesAt.getMinutes()).toBe(30);
+    expect(closesAt.getUTCHours()).toBe(18); // GMT period: London == UTC
+    expect(closesAt.getUTCMinutes()).toBe(30);
 
     jest.useRealTimers();
   });
 
   it('sets closesAt one week in the future when the close day has already passed this week', async () => {
-    // Arrange – close on Monday (day 1); "now" is Wednesday (day 3).
-    // The previous Monday already passed, so the next Monday is 5 days away.
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-03-18T10:00:00.000Z')); // Wednesday
+    jest.setSystemTime(new Date('2026-03-18T10:00:00.000Z')); // Wednesday (GMT period)
 
     const { mockSet } = setupMocks({
       configData: {
-        votingSchedule: { closeDay: 1, closeTime: '20:00' },
+        votingSchedule: { openDay: 3, openTime: '10:00', closeDay: 1, closeTime: '20:00' },
       },
     });
 
-    // Act
     await openVotingRound();
 
-    // Assert – next Monday from Wednesday is +5 days → 2026-03-23
     const callArg = mockSet.mock.calls[0][0];
     const closesAt: Date = callArg.closesAt;
     expect(closesAt.getDay()).toBe(1); // Monday
-    // It must be strictly in the future relative to "now" (Wednesday)
     expect(closesAt.getTime()).toBeGreaterThan(new Date('2026-03-18T10:00:00.000Z').getTime());
 
     jest.useRealTimers();
   });
 
   it('sets closesAt one week in the future when close day is today but the time has already passed', async () => {
-    // Arrange – close on Wednesday (day 3) at 09:00; "now" is Wednesday 10:00.
-    // The configured time has already passed today, so it should roll over to next Wednesday.
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-03-18T10:00:00.000Z')); // Wednesday 10:00 UTC
+    jest.setSystemTime(new Date('2026-03-18T10:00:00.000Z')); // Wednesday 10:00 UTC (GMT)
 
     const { mockSet } = setupMocks({
       configData: {
-        votingSchedule: { closeDay: 3, closeTime: '09:00' },
+        votingSchedule: { openDay: 3, openTime: '10:00', closeDay: 3, closeTime: '09:00' },
       },
     });
 
-    // Act
     await openVotingRound();
 
-    // Assert – closesAt should be next Wednesday (7 days later), not today
     const callArg = mockSet.mock.calls[0][0];
     const closesAt: Date = callArg.closesAt;
     expect(closesAt.getDay()).toBe(3); // still Wednesday
-    // Must be more than 6 days ahead (i.e. next week's Wednesday)
     const sixDaysMs = 6 * 24 * 60 * 60 * 1000;
     expect(closesAt.getTime() - new Date('2026-03-18T10:00:00.000Z').getTime()).toBeGreaterThan(
       sixDaysMs
@@ -282,46 +222,95 @@ describe('openVotingRound', () => {
     jest.useRealTimers();
   });
 
-  it('sets closesAt hours and minutes to match the configured closeTime', async () => {
-    // Arrange
+  it('sets closesAt hours and minutes to match the configured closeTime (GMT period)', async () => {
+    // Use a winter date so GMT is in effect (London == UTC)
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-01-05T10:00:00.000Z')); // Monday in GMT
+
     const { mockSet } = setupMocks({
       configData: {
-        votingSchedule: { closeDay: 5, closeTime: '19:45' },
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 5, closeTime: '19:45' },
       },
     });
 
-    // Act
     await openVotingRound();
 
-    // Assert
     const callArg = mockSet.mock.calls[0][0];
     const closesAt: Date = callArg.closesAt;
-    expect(closesAt.getHours()).toBe(19);
-    expect(closesAt.getMinutes()).toBe(45);
-    expect(closesAt.getSeconds()).toBe(0);
-    expect(closesAt.getMilliseconds()).toBe(0);
+    // During GMT, UTC hours == London hours
+    expect(closesAt.getUTCHours()).toBe(19);
+    expect(closesAt.getUTCMinutes()).toBe(45);
+    expect(closesAt.getUTCSeconds()).toBe(0);
+    expect(closesAt.getUTCMilliseconds()).toBe(0);
+
+    jest.useRealTimers();
   });
 
   it('calculates closesAt based on votingSchedule.closeDay and closeTime from config', async () => {
-    // Arrange – use a fixed point in time so the result is deterministic
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-03-16T08:00:00.000Z')); // Monday
+    jest.setSystemTime(new Date('2026-03-16T08:00:00.000Z')); // Monday (GMT period)
 
     const { mockSet } = setupMocks({
       configData: {
-        votingSchedule: { closeDay: 5, closeTime: '20:00' }, // Friday
+        votingSchedule: { openDay: 1, openTime: '08:00', closeDay: 5, closeTime: '20:00' },
       },
     });
 
-    // Act
     await openVotingRound();
 
-    // Assert – next Friday from Monday is +4 days
     const callArg = mockSet.mock.calls[0][0];
     const closesAt: Date = callArg.closesAt;
     expect(closesAt.getDay()).toBe(5); // Friday
-    expect(closesAt.getHours()).toBe(20);
-    expect(closesAt.getMinutes()).toBe(0);
+    expect(closesAt.getUTCHours()).toBe(20); // GMT: UTC == London
+    expect(closesAt.getUTCMinutes()).toBe(0);
+
+    jest.useRealTimers();
+  });
+
+  // -------------------------------------------------------------------------
+  // BST timezone correctness
+  // -------------------------------------------------------------------------
+
+  it('returns a UTC close time that accounts for the BST offset (UTC+1)', async () => {
+    // 2026-04-30T19:00:00Z = 20:00 BST (Thursday evening in London)
+    // Close day = Saturday (6), closeTime = '20:00' London = 19:00 UTC during BST
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-30T19:00:00.000Z'));
+
+    const { mockSet } = setupMocks({
+      configData: {
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 6, closeTime: '20:00' },
+      },
+    });
+
+    await openVotingRound();
+
+    const callArg = mockSet.mock.calls[0][0];
+    const closesAt: Date = callArg.closesAt;
+    // Saturday 2026-05-02 20:00 BST = 2026-05-02T19:00:00.000Z
+    expect(closesAt.toISOString()).toBe('2026-05-02T19:00:00.000Z');
+
+    jest.useRealTimers();
+  });
+
+  it('uses London day-of-week (not UTC) when UTC date and London date differ near midnight', async () => {
+    // 2026-04-30T23:30:00Z = 2026-05-01T00:30:00 BST → Friday in London, Thursday in UTC
+    // Close day = Saturday (6), so from London's Friday it's 1 day away
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-30T23:30:00.000Z'));
+
+    const { mockSet } = setupMocks({
+      configData: {
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 6, closeTime: '20:00' },
+      },
+    });
+
+    await openVotingRound();
+
+    const callArg = mockSet.mock.calls[0][0];
+    const closesAt: Date = callArg.closesAt;
+    // Saturday 2026-05-02 20:00 BST = 2026-05-02T19:00:00.000Z
+    expect(closesAt.toISOString()).toBe('2026-05-02T19:00:00.000Z');
 
     jest.useRealTimers();
   });
@@ -331,17 +320,14 @@ describe('openVotingRound', () => {
   // -------------------------------------------------------------------------
 
   it('throws the error when an unexpected error occurs', async () => {
-    // Arrange – make the very first Firestore call blow up
     (db.collection as jest.Mock).mockImplementation(() => {
       throw new Error('Firestore unavailable');
     });
 
-    // Act & Assert
     await expect(openVotingRound()).rejects.toThrow('Firestore unavailable');
   });
 
   it('throws when the films query rejects', async () => {
-    // Arrange
     (db.collection as jest.Mock).mockImplementation((collectionName: string) => {
       if (collectionName === 'votingRounds') {
         return {
@@ -360,7 +346,120 @@ describe('openVotingRound', () => {
       return undefined;
     });
 
-    // Act & Assert
     await expect(openVotingRound()).rejects.toThrow('Films query failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldOpenVoting
+// ---------------------------------------------------------------------------
+
+describe('shouldOpenVoting', () => {
+  const london = (iso: string) => DateTime.fromISO(iso, { zone: 'Europe/London' });
+
+  it('returns true when day and hour match the configured open time', () => {
+    // Friday (JS day 5) at 18:00 London
+    const now = london('2026-05-01T18:30:00'); // Friday BST
+    expect(shouldOpenVoting(5, '18:00', now)).toBe(true);
+  });
+
+  it('returns false when the day is correct but the hour does not match', () => {
+    const now = london('2026-05-01T17:30:00'); // Friday, but 17:xx not 18:xx
+    expect(shouldOpenVoting(5, '18:00', now)).toBe(false);
+  });
+
+  it('returns false when the hour is correct but the day does not match', () => {
+    const now = london('2026-04-30T18:30:00'); // Thursday, not Friday
+    expect(shouldOpenVoting(5, '18:00', now)).toBe(false);
+  });
+
+  it('returns false when neither day nor hour match', () => {
+    const now = london('2026-04-29T10:00:00'); // Wednesday at 10:xx
+    expect(shouldOpenVoting(5, '18:00', now)).toBe(false);
+  });
+
+  it('handles Sunday (JS day 0) correctly using Luxon weekday 7', () => {
+    // 2026-05-03 is a Sunday
+    const now = london('2026-05-03T12:00:00');
+    expect(shouldOpenVoting(0, '12:00', now)).toBe(true);
+  });
+
+  it('handles Saturday (JS day 6) correctly', () => {
+    // 2026-05-02 is a Saturday
+    const now = london('2026-05-02T09:00:00');
+    expect(shouldOpenVoting(6, '09:00', now)).toBe(true);
+  });
+
+  it('works correctly with BST in effect — uses London hour not UTC hour', () => {
+    // 2026-05-01T17:00:00Z = 18:00 BST (Friday)
+    const now = DateTime.fromISO('2026-05-01T17:00:00Z').setZone('Europe/London');
+    expect(shouldOpenVoting(5, '18:00', now)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tryOpenVotingRound — timing gate
+// ---------------------------------------------------------------------------
+
+describe('tryOpenVotingRound', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('opens a round when the current London time matches openDay and openTime', async () => {
+    // Friday (day 5) at 18:xx BST → 17:xx UTC
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-01T17:00:00.000Z')); // 18:00 BST Friday
+
+    const { mockSet } = setupMocks({
+      configData: {
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 6, closeTime: '20:00' },
+      },
+    });
+
+    await tryOpenVotingRound();
+
+    expect(mockSet).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('does not open a round when the current hour does not match openTime', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-01T16:00:00.000Z')); // 17:00 BST Friday — too early
+
+    const { mockSet } = setupMocks({
+      configData: {
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 6, closeTime: '20:00' },
+      },
+    });
+
+    await tryOpenVotingRound();
+
+    expect(mockSet).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('does not open a round when the day does not match openDay', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-30T17:00:00.000Z')); // 18:00 BST Thursday — wrong day
+
+    const { mockSet } = setupMocks({
+      configData: {
+        votingSchedule: { openDay: 5, openTime: '18:00', closeDay: 6, closeTime: '20:00' },
+      },
+    });
+
+    await tryOpenVotingRound();
+
+    expect(mockSet).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('does nothing when club config document does not exist', async () => {
+    const { mockSet } = setupMocks({ configExists: false });
+
+    await tryOpenVotingRound();
+
+    expect(mockSet).not.toHaveBeenCalled();
   });
 });

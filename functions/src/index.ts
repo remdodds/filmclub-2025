@@ -18,7 +18,7 @@ import * as historyApi from './api/history';
 import * as adminApi from './api/admin';
 
 // Import scheduled functions
-import { openVotingRound } from './scheduled/openVoting';
+import { openVotingRound, tryOpenVotingRound } from './scheduled/openVoting';
 import { closeVotingRound } from './scheduled/closeVoting';
 
 import { tmdbApiKey } from './tmdb/tmdb';
@@ -159,11 +159,11 @@ export const api = onRequest({ secrets: [tmdbApiKey] }, app);
 // Export scheduled functions
 export const openVoting = onSchedule(
   {
-    schedule: '0 18 * * 5', // Every Friday at 6pm (adjust based on config)
-    timeZone: 'Europe/London', // Adjust based on club config
+    schedule: '0 * * * *', // Every hour — actual open day/time is read from club config
+    timeZone: 'Europe/London',
   },
   async () => {
-    await openVotingRound();
+    await tryOpenVotingRound();
   }
 );
 

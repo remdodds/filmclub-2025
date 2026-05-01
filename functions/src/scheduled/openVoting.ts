@@ -1,26 +1,12 @@
-/**
- * Open Voting Scheduled Function
- *
- * Cloud Scheduler triggers this function to open a new voting round
- * Schedule: Configured based on club's voting schedule (e.g., Friday 6pm)
- */
-
+import { DateTime } from 'luxon';
 import { db } from '../utils/db';
 
-/**
- * Opens a new voting round
- *
- * This function:
- * 1. Checks if there's already an open voting round
- * 2. Gets nominated films to use as candidates
- * 3. Creates a new voting round document
- * 4. Calculates when voting should close based on club config
- */
+const TIMEZONE = 'Europe/London';
+
 export async function openVotingRound(): Promise<void> {
   try {
     console.log('Opening new voting round...');
 
-    // Check if there's already an open round
     const openRounds = await db
       .collection('votingRounds')
       .where('status', '==', 'open')
@@ -32,7 +18,6 @@ export async function openVotingRound(): Promise<void> {
       return;
     }
 
-    // Get nominated films
     const filmsSnapshot = await db
       .collection('films')
       .where('status', '==', 'nominated')
@@ -46,7 +31,6 @@ export async function openVotingRound(): Promise<void> {
     const candidateCount = filmsSnapshot.size;
     console.log(`Found ${candidateCount} nominated films`);
 
-    // Get club config for close time
     const configDoc = await db.collection('config').doc('club').get();
     if (!configDoc.exists) {
       console.error('Club not configured. Cannot open voting.');
@@ -56,17 +40,9 @@ export async function openVotingRound(): Promise<void> {
     const config = configDoc.data()!;
     const { votingSchedule } = config;
 
-    // Calculate close time
-    // This is a simple implementation - in production you'd want to use a proper
-    // timezone library to handle DST and edge cases
     const now = new Date();
-    const closesAt = calculateNextCloseTime(
-      now,
-      votingSchedule.closeDay,
-      votingSchedule.closeTime
-    );
+    const closesAt = calculateNextCloseTime(now, votingSchedule.closeDay, votingSchedule.closeTime);
 
-    // Create voting round
     const roundRef = db.collection('votingRounds').doc();
     await roundRef.set({
       status: 'open',
@@ -85,28 +61,63 @@ export async function openVotingRound(): Promise<void> {
 }
 
 /**
- * Calculate the next close time based on day and time
- * @param from - Starting date/time
- * @param closeDay - Day of week (0-6, Sunday-Saturday)
- * @param closeTime - Time in HH:mm format
- * @returns Date when voting should close
+ * Returns true if the current London time matches the configured open day and hour.
+ * Called hourly by the scheduler; we match on day + hour so the schedule is config-driven.
  */
-function calculateNextCloseTime(from: Date, closeDay: number, closeTime: string): Date {
-  const [hours, minutes] = closeTime.split(':').map(Number);
+export function shouldOpenVoting(openDay: number, openTime: string, now: DateTime): boolean {
+  const [openHour] = openTime.split(':').map(Number);
+  // Luxon weekday: 1=Mon..7=Sun → convert to JS convention: 0=Sun..6=Sat
+  const nowJsDay = now.weekday % 7;
+  return nowJsDay === openDay && now.hour === openHour;
+}
 
-  const result = new Date(from);
-  result.setHours(hours, minutes, 0, 0);
-
-  // Calculate days until close day
-  const currentDay = from.getDay();
-  let daysUntilClose = closeDay - currentDay;
-
-  // If close day is before current day, or same day but time has passed, go to next week
-  if (daysUntilClose < 0 || (daysUntilClose === 0 && result <= from)) {
-    daysUntilClose += 7;
+/**
+ * Reads the club config, checks whether it is the configured open time in London,
+ * then delegates to openVotingRound(). Called by the hourly Cloud Scheduler.
+ */
+export async function tryOpenVotingRound(): Promise<void> {
+  const configDoc = await db.collection('config').doc('club').get();
+  if (!configDoc.exists) {
+    console.error('Club not configured. Cannot check voting schedule.');
+    return;
   }
 
-  result.setDate(result.getDate() + daysUntilClose);
+  const config = configDoc.data()!;
+  const { openDay, openTime } = config.votingSchedule;
 
-  return result;
+  const now = DateTime.now().setZone(TIMEZONE);
+  if (!shouldOpenVoting(openDay, openTime, now)) {
+    console.log(`Not the scheduled open time (configured: day ${openDay} ${openTime}). Skipping.`);
+    return;
+  }
+
+  await openVotingRound();
+}
+
+/**
+ * Calculates the next close time in UTC, interpreting closeDay and closeTime as
+ * Europe/London local time (handles GMT/BST correctly).
+ *
+ * @param from - reference point (now)
+ * @param closeDay - 0-6 (JS convention: 0=Sun, 6=Sat) in London timezone
+ * @param closeTime - HH:mm in London timezone
+ */
+function calculateNextCloseTime(from: Date, closeDay: number, closeTime: string): Date {
+  const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
+
+  const fromDt = DateTime.fromJSDate(from, { zone: TIMEZONE });
+  // Luxon weekday: 1=Mon..7=Sun → JS day: 0=Sun..6=Sat
+  const fromJsDay = fromDt.weekday % 7;
+
+  const daysUntilClose = closeDay - fromJsDay;
+
+  let candidate = fromDt
+    .plus({ days: daysUntilClose })
+    .set({ hour: closeHours, minute: closeMinutes, second: 0, millisecond: 0 });
+
+  if (candidate <= fromDt) {
+    candidate = candidate.plus({ weeks: 1 });
+  }
+
+  return candidate.toJSDate();
 }
