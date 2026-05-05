@@ -28,6 +28,7 @@ export interface StreamingService {
   provider_id: number;
   provider_name: string;
   logo_path: string;
+  type: 'flatrate' | 'rent';
 }
 
 /**
@@ -92,17 +93,32 @@ export async function getWatchProviders(
     }
 
     const data = await response.json();
-    const flatrate = data.results?.[country]?.flatrate;
+    const countryData = data.results?.[country];
 
-    if (!flatrate || !Array.isArray(flatrate) || flatrate.length === 0) {
+    const flatrate: StreamingService[] = Array.isArray(countryData?.flatrate)
+      ? countryData.flatrate.map((provider: any) => ({
+          provider_id: provider.provider_id,
+          provider_name: provider.provider_name,
+          logo_path: provider.logo_path,
+          type: 'flatrate' as const,
+        }))
+      : [];
+
+    const rent: StreamingService[] = Array.isArray(countryData?.rent)
+      ? countryData.rent.map((provider: any) => ({
+          provider_id: provider.provider_id,
+          provider_name: provider.provider_name,
+          logo_path: provider.logo_path,
+          type: 'rent' as const,
+        }))
+      : [];
+
+    const combined = [...flatrate, ...rent];
+    if (combined.length === 0) {
       return [];
     }
 
-    return flatrate.map((provider: any) => ({
-      provider_id: provider.provider_id,
-      provider_name: provider.provider_name,
-      logo_path: provider.logo_path,
-    }));
+    return combined;
   } catch (err) {
     console.error('TMDB getWatchProviders error:', err);
     return [];
