@@ -2,6 +2,7 @@ export interface StreamingService {
   provider_id: number;
   provider_name: string;
   logo_path: string;
+  type?: 'flatrate' | 'rent';
 }
 
 export interface FilmSuggestion {
