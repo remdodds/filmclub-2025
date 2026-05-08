@@ -1,4 +1,5 @@
-import { closeVotingRound } from './closeVoting';
+import { DateTime } from 'luxon';
+import { closeVotingRound, shouldCloseVoting, tryCloseVotingRound } from './closeVoting';
 import { db } from '../utils/db';
 import { getDefaultAlgorithm } from '../voting/index';
 import { markFilmAsWatched } from '../films/films.logic';
@@ -585,5 +586,183 @@ describe('closeVotingRound', () => {
 
     // Act & Assert
     await expect(closeVotingRound()).rejects.toThrow('Ballots query failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldCloseVoting
+// ---------------------------------------------------------------------------
+
+describe('shouldCloseVoting', () => {
+  const london = (iso: string) => DateTime.fromISO(iso, { zone: 'Europe/London' });
+
+  it('returns true when now is exactly the close time (0 minutes ago)', () => {
+    // Saturday 20:00 London (2026-05-02 is a Saturday)
+    const now = london('2026-05-02T20:00:00');
+    expect(shouldCloseVoting(6, '20:00', now)).toBe(true);
+  });
+
+  it('returns true when close time was 30 minutes ago (job ran late)', () => {
+    // Saturday 20:30 London — 30 minutes after 20:00
+    const now = london('2026-05-02T20:30:00');
+    expect(shouldCloseVoting(6, '20:00', now)).toBe(true);
+  });
+
+  it('returns true when close time was 59 minutes ago (just within window)', () => {
+    // Saturday 20:59 London — 59 minutes after 20:00
+    const now = london('2026-05-02T20:59:00');
+    expect(shouldCloseVoting(6, '20:00', now)).toBe(true);
+  });
+
+  it('returns false when now is 5 minutes BEFORE the close time (too early)', () => {
+    // Saturday 19:55 London — 5 minutes before 20:00
+    const now = london('2026-05-02T19:55:00');
+    expect(shouldCloseVoting(6, '20:00', now)).toBe(false);
+  });
+
+  it('returns false when exactly 60 minutes have passed (outside window)', () => {
+    // Saturday 21:00 London — exactly 60 minutes after 20:00 (not < 60)
+    const now = london('2026-05-02T21:00:00');
+    expect(shouldCloseVoting(6, '20:00', now)).toBe(false);
+  });
+
+  it('returns true for a non-round-hour close time (11:05) when job runs at 12:00', () => {
+    // Wednesday (2026-05-06 is a Wednesday), closeTime 11:05, job runs at 12:00 → minutesSince=55
+    const now = london('2026-05-06T12:00:00');
+    expect(shouldCloseVoting(3, '11:05', now)).toBe(true);
+  });
+
+  it('returns false for 11:05 when job runs at 11:00 (too early by 5 min)', () => {
+    // Wednesday 11:00 — 5 minutes before 11:05 → minutesSince=-5
+    const now = london('2026-05-06T11:00:00');
+    expect(shouldCloseVoting(3, '11:05', now)).toBe(false);
+  });
+
+  it('returns false when close day was yesterday (outside the 1-hour window)', () => {
+    // now is Saturday 20:30, closeDay=5 (Friday) → daysAgo=1, minutesSince = 24*60+30 = 1470 → false
+    const now = london('2026-05-02T20:30:00');
+    expect(shouldCloseVoting(5, '20:00', now)).toBe(false);
+  });
+
+  it('handles Sunday (closeDay=0) correctly with Luxon weekday % 7', () => {
+    // 2026-05-03 is a Sunday. closeDay=0, closeTime='12:00', now=12:30 → minutesSince=30 → true
+    const now = london('2026-05-03T12:30:00');
+    expect(shouldCloseVoting(0, '12:00', now)).toBe(true);
+  });
+
+  it('handles Saturday (closeDay=6) correctly', () => {
+    // 2026-05-02 is a Saturday. closeDay=6, closeTime='09:00', now=09:45 → minutesSince=45 → true
+    const now = london('2026-05-02T09:45:00');
+    expect(shouldCloseVoting(6, '09:00', now)).toBe(true);
+  });
+
+  it('works correctly with BST in effect — uses London time not UTC', () => {
+    // 2026-05-01T19:05:00Z = 20:05 BST (Friday). closeDay=5, closeTime='20:00' → minutesSince=5 → true
+    const now = DateTime.fromISO('2026-05-01T19:05:00Z').setZone('Europe/London');
+    expect(shouldCloseVoting(5, '20:00', now)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tryCloseVotingRound — timing gate
+// ---------------------------------------------------------------------------
+
+describe('tryCloseVotingRound', () => {
+  // Extended wireMocks that also handles the 'config' collection
+  function wireMocksWithConfig(opts: {
+    configExists?: boolean;
+    configData?: object;
+    openRoundsEmpty?: boolean;
+    ballotDocs?: object[];
+    filmDocs?: object[];
+    winningFilmDoc?: { exists: boolean; id?: string; data?: () => object };
+    algorithmResults?: VotingResults;
+  } = {}) {
+    const {
+      configExists = true,
+      configData = {
+        votingSchedule: { closeDay: 6, closeTime: '20:00' },
+      },
+      ...restOpts
+    } = opts;
+
+    const { mockRoundUpdate, mockMetaSet, mockFilmUpdate, mockFilmGet, mockBallotsGet, mockCalculateWinner } =
+      wireMocks(restOpts);
+
+    // Wrap the existing mock to also handle 'config'
+    const originalImpl = (db.collection as jest.Mock).getMockImplementation();
+    (db.collection as jest.Mock).mockImplementation((collectionName: string) => {
+      if (collectionName === 'config') {
+        return {
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({
+              exists: configExists,
+              data: () => configData,
+            }),
+          }),
+        };
+      }
+      return originalImpl!(collectionName);
+    });
+
+    return { mockRoundUpdate, mockMetaSet, mockFilmUpdate, mockFilmGet, mockBallotsGet, mockCalculateWinner };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('calls closeVotingRound when close time has passed within the window', async () => {
+    // Saturday 20:30 BST = 19:30 UTC (2026-05-02)
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-02T19:30:00.000Z'));
+
+    const { mockRoundUpdate } = wireMocksWithConfig({
+      configData: { votingSchedule: { closeDay: 6, closeTime: '20:00' } },
+    });
+
+    await tryCloseVotingRound();
+
+    expect(mockRoundUpdate).toHaveBeenCalled();
+  });
+
+  it('does NOT call closeVotingRound when the close time has not arrived yet', async () => {
+    // Saturday 19:55 BST = 18:55 UTC (2026-05-02) — 5 minutes before 20:00 BST
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-02T18:55:00.000Z'));
+
+    const { mockRoundUpdate } = wireMocksWithConfig({
+      configData: { votingSchedule: { closeDay: 6, closeTime: '20:00' } },
+    });
+
+    await tryCloseVotingRound();
+
+    expect(mockRoundUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call closeVotingRound when the close day does not match', async () => {
+    // Friday 20:30 BST = 19:30 UTC (2026-05-01) — closeDay=6 (Saturday), minutesSince >> 60
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-01T19:30:00.000Z'));
+
+    const { mockRoundUpdate } = wireMocksWithConfig({
+      configData: { votingSchedule: { closeDay: 6, closeTime: '20:00' } },
+    });
+
+    await tryCloseVotingRound();
+
+    expect(mockRoundUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when club config document does not exist', async () => {
+    const { mockRoundUpdate } = wireMocksWithConfig({ configExists: false });
+
+    await tryCloseVotingRound();
+
+    expect(mockRoundUpdate).not.toHaveBeenCalled();
   });
 });

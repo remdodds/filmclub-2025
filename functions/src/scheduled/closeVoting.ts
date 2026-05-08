@@ -5,11 +5,53 @@
  * Schedule: Configured based on club's voting schedule (e.g., Saturday 8pm)
  */
 
+import { DateTime } from 'luxon';
 import { db } from '../utils/db';
 import { getDefaultAlgorithm } from '../voting/index';
 import { Ballot, FilmCandidate, VotingResults } from '../voting/types';
 import { markFilmAsWatched, Film } from '../films/films.logic';
 import { archiveVotingRound } from '../history/votingHistory';
+
+const TIMEZONE = 'Europe/London';
+
+/**
+ * Returns true if the configured close time has passed within the last 60 minutes.
+ * Called hourly by the scheduler; actual close day/time is read from club config.
+ */
+export function shouldCloseVoting(closeDay: number, closeTime: string, now: DateTime): boolean {
+  const [closeHour, closeMinute] = closeTime.split(':').map(Number);
+  // Luxon weekday: 1=Mon..7=Sun → JS day: 0=Sun..6=Sat
+  const nowJsDay = now.weekday % 7;
+  const daysAgo = (nowJsDay - closeDay + 7) % 7;
+  const scheduledClose = now
+    .minus({ days: daysAgo })
+    .set({ hour: closeHour, minute: closeMinute, second: 0, millisecond: 0 });
+  const minutesSince = now.diff(scheduledClose, 'minutes').minutes;
+  return minutesSince >= 0 && minutesSince < 60;
+}
+
+/**
+ * Reads the club config, checks whether it is the configured close time in London,
+ * then delegates to closeVotingRound(). Called by the hourly Cloud Scheduler.
+ */
+export async function tryCloseVotingRound(): Promise<void> {
+  const configDoc = await db.collection('config').doc('club').get();
+  if (!configDoc.exists) {
+    console.error('Club not configured. Cannot check voting schedule.');
+    return;
+  }
+
+  const config = configDoc.data()!;
+  const { closeDay, closeTime } = config.votingSchedule;
+
+  const now = DateTime.now().setZone(TIMEZONE);
+  if (!shouldCloseVoting(closeDay, closeTime, now)) {
+    console.log(`Not the scheduled close time (configured: day ${closeDay} ${closeTime}). Skipping.`);
+    return;
+  }
+
+  await closeVotingRound();
+}
 
 /**
  * Closes the current voting round and determines the winner
