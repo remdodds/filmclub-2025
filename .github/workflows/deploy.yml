@@ -86,7 +86,8 @@ jobs:
           fi
           DEPLOY_TARGETS="${DEPLOY_TARGETS#,}"
           if [ -z "$DEPLOY_TARGETS" ]; then
-            DEPLOY_TARGETS="functions,hosting,firestore:rules,firestore:indexes"
+            echo "No relevant changes detected, skipping deploy."
+            exit 0
           fi
 
           echo "Deploying: $DEPLOY_TARGETS"
