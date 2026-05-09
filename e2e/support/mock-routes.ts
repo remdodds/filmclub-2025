@@ -36,6 +36,11 @@ export async function installMockRoutes(page: Page): Promise<void> {
     route.fulfill({ json: filmsHistoryFixture })
   );
 
+  // /films/:id/streaming
+  await page.route('**/api/films/*/streaming', (route) =>
+    route.fulfill({ json: { services: [] } })
+  );
+
   // /films/:id  (GET detail, DELETE)
   await page.route('**/api/films/*', async (route) => {
     if (route.request().method() === 'DELETE') {
