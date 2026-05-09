@@ -1,4 +1,6 @@
+import { goto } from '$app/navigation';
 import type { FilmSuggestion, StreamingService } from '$lib/types';
+import { auth } from './stores';
 
 const API_BASE = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
 
@@ -9,6 +11,10 @@ function getToken(): string {
 
 async function handleResponse(res: Response) {
   if (!res.ok) {
+    if (res.status === 401) {
+      auth.logout();
+      goto('/');
+    }
     const error = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');
   }
