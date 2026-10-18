@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { db } from '../utils/db';
-import { hashPassword } from '../utils/auth';
+import { hashPassword, verifyPassword } from '../utils/auth';
 import { validatePassword } from '../utils/auth.logic';
 
 /**
@@ -20,6 +20,8 @@ export interface ClubConfig {
     openTime: string; // HH:mm format
     closeDay: number; // 0-6 (Sunday-Saturday)
     closeTime: string; // HH:mm format
+    winnerDisplayEndDay?: number | null; // 0-6 (Sunday-Saturday), optional
+    winnerDisplayEndTime?: string | null; // HH:mm format, optional
   };
 }
 
@@ -219,6 +221,28 @@ export async function updateVotingSchedule(req: Request, res: Response): Promise
       return;
     }
 
+    // Validate optional winner display end fields
+    const hasEndDay = votingSchedule.winnerDisplayEndDay != null;
+    const hasEndTime = votingSchedule.winnerDisplayEndTime != null;
+    if (hasEndDay !== hasEndTime) {
+      res.status(400).json({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+      return;
+    }
+    if (hasEndDay) {
+      if (
+        typeof votingSchedule.winnerDisplayEndDay !== 'number' ||
+        votingSchedule.winnerDisplayEndDay < 0 ||
+        votingSchedule.winnerDisplayEndDay > 6
+      ) {
+        res.status(400).json({ error: 'Invalid winnerDisplayEndDay. Must be 0-6 (Sunday-Saturday)' });
+        return;
+      }
+      if (!timeRegex.test(votingSchedule.winnerDisplayEndTime as string)) {
+        res.status(400).json({ error: 'Invalid winnerDisplayEndTime format. Use HH:mm (e.g., "21:00")' });
+        return;
+      }
+    }
+
     // Update voting schedule
     await db.collection('config').doc('club').update({
       votingSchedule,
@@ -241,6 +265,105 @@ export async function updateVotingSchedule(req: Request, res: Response): Promise
     });
   } catch (error) {
     console.error('Update voting schedule error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /admin/change-password
+ * Change the club password (admin only)
+ *
+ * Request body:
+ * {
+ *   currentPassword: string,
+ *   newPassword: string
+ * }
+ *
+ * Response:
+ * {
+ *   success: true
+ * }
+ */
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Missing required fields: currentPassword, newPassword' });
+      return;
+    }
+
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(404).json({ error: 'Club not configured.' });
+      return;
+    }
+
+    const data = configDoc.data()!;
+    const isValid = await verifyPassword(currentPassword, data.passwordHash);
+    if (!isValid) {
+      res.status(401).json({ error: 'Current password is incorrect.' });
+      return;
+    }
+
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      res.status(400).json({ error: passwordValidation.error });
+      return;
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await db.collection('config').doc('club').update({
+      passwordHash,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * PATCH /admin/club-name
+ * Update the club name (admin only)
+ *
+ * Request body:
+ * {
+ *   clubName: string
+ * }
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   clubName: string
+ * }
+ */
+export async function updateClubName(req: Request, res: Response): Promise<void> {
+  try {
+    const { clubName } = req.body;
+    const trimmed = typeof clubName === 'string' ? clubName.trim() : '';
+
+    if (!trimmed) {
+      res.status(400).json({ error: 'Missing required field: clubName' });
+      return;
+    }
+
+    const configDoc = await db.collection('config').doc('club').get();
+    if (!configDoc.exists) {
+      res.status(404).json({ error: 'Club not configured.' });
+      return;
+    }
+
+    await db.collection('config').doc('club').update({
+      clubName: trimmed,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({ success: true, clubName: trimmed });
+  } catch (error) {
+    console.error('Update club name error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

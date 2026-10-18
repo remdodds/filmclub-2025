@@ -18,8 +18,8 @@ import * as historyApi from './api/history';
 import * as adminApi from './api/admin';
 
 // Import scheduled functions
-import { openVotingRound } from './scheduled/openVoting';
-import { closeVotingRound } from './scheduled/closeVoting';
+import { openVotingRound, tryOpenVotingRound } from './scheduled/openVoting';
+import { closeVotingRound, tryCloseVotingRound } from './scheduled/closeVoting';
 
 import { tmdbApiKey } from './tmdb/tmdb';
 
@@ -32,7 +32,7 @@ app.use(express.json());
 // CORS middleware (allow all origins for now - restrict in production)
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -97,6 +97,8 @@ app.post('/admin/select-winner', authMiddleware, adminMiddleware, adminApi.selec
 app.delete('/admin/clear-films', authMiddleware, adminMiddleware, adminApi.clearNominatedFilms);
 app.delete('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.deleteHistoryRecord);
 app.patch('/admin/history/:roundId', authMiddleware, adminMiddleware, adminApi.updateHistoryRecord);
+app.put('/admin/change-password', authMiddleware, adminMiddleware, configApi.changePassword);
+app.patch('/admin/club-name', authMiddleware, adminMiddleware, configApi.updateClubName);
 
 // Protected routes (auth required)
 app.post('/auth/logout', authMiddleware, authApi.logout);
@@ -157,20 +159,20 @@ export const api = onRequest({ secrets: [tmdbApiKey] }, app);
 // Export scheduled functions
 export const openVoting = onSchedule(
   {
-    schedule: '0 18 * * 5', // Every Friday at 6pm (adjust based on config)
-    timeZone: 'Europe/London', // Adjust based on club config
+    schedule: '0 * * * *', // Every hour — actual open day/time is read from club config
+    timeZone: 'Europe/London',
   },
   async () => {
-    await openVotingRound();
+    await tryOpenVotingRound();
   }
 );
 
 export const closeVoting = onSchedule(
   {
-    schedule: '0 20 * * 6', // Every Saturday at 8pm (adjust based on config)
-    timeZone: 'Europe/London', // Adjust based on club config
+    schedule: '0 * * * *', // Every hour — actual close day/time is read from club config
+    timeZone: 'Europe/London',
   },
   async () => {
-    await closeVotingRound();
+    await tryCloseVotingRound();
   }
 );

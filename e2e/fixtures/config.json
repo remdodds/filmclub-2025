@@ -1,0 +1,12 @@
+{
+  "config": {
+    "clubName": "Test Film Club",
+    "timezone": "Europe/London",
+    "votingSchedule": {
+      "openDay": 5,
+      "openTime": "18:00",
+      "closeDay": 6,
+      "closeTime": "20:00"
+    }
+  }
+}

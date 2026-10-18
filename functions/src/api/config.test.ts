@@ -3,19 +3,20 @@
  */
 
 import { Request, Response } from 'express';
-import { setupClub, getConfig, updateVotingSchedule } from './config';
+import { setupClub, getConfig, updateVotingSchedule, changePassword, updateClubName } from './config';
 
 // Mock all dependencies
 jest.mock('../utils/db', () => ({ db: { collection: jest.fn() } }));
-jest.mock('../utils/auth', () => ({ hashPassword: jest.fn() }));
+jest.mock('../utils/auth', () => ({ hashPassword: jest.fn(), verifyPassword: jest.fn() }));
 jest.mock('../utils/auth.logic', () => ({ validatePassword: jest.fn() }));
 
 import { db } from '../utils/db';
-import { hashPassword } from '../utils/auth';
+import { hashPassword, verifyPassword } from '../utils/auth';
 import { validatePassword } from '../utils/auth.logic';
 
 const mockDb = db as jest.Mocked<typeof db>;
 const mockHashPassword = hashPassword as jest.Mock;
+const mockVerifyPassword = verifyPassword as jest.Mock;
 const mockValidatePassword = validatePassword as jest.Mock;
 
 describe('setupClub', () => {
@@ -514,6 +515,331 @@ describe('updateVotingSchedule', () => {
 
     // Act
     await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns 400 when only winnerDisplayEndDay is set without winnerDisplayEndTime', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 1 } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+  });
+
+  it('returns 400 when only winnerDisplayEndTime is set without winnerDisplayEndDay', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndTime: '21:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'winnerDisplayEndDay and winnerDisplayEndTime must both be set or both be null' });
+  });
+
+  it('returns 400 when winnerDisplayEndDay is out of range', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 7, winnerDisplayEndTime: '21:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid winnerDisplayEndDay. Must be 0-6 (Sunday-Saturday)' });
+  });
+
+  it('returns 400 when winnerDisplayEndTime has invalid format', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { votingSchedule: { ...validSchedule, winnerDisplayEndDay: 1, winnerDisplayEndTime: '9:00' } } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Invalid winnerDisplayEndTime format. Use HH:mm (e.g., "21:00")' });
+  });
+
+  it('updates successfully with winnerDisplayEndDay and winnerDisplayEndTime set', async () => {
+    // Arrange
+    const scheduleWithEnd = { ...validSchedule, winnerDisplayEndDay: 1, winnerDisplayEndTime: '21:00' };
+    const updatedData = { ...storedData, votingSchedule: scheduleWithEnd };
+
+    mockGet
+      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({ exists: true, data: () => updatedData });
+
+    mockRequest = { body: { votingSchedule: scheduleWithEnd } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({ votingSchedule: scheduleWithEnd, updatedAt: expect.any(Date) });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({
+      success: true,
+      config: { clubName: storedData.clubName, timezone: storedData.timezone, votingSchedule: scheduleWithEnd },
+    });
+  });
+
+  it('updates successfully clearing winnerDisplayEnd fields with null values', async () => {
+    // Arrange
+    const scheduleWithNull = { ...validSchedule, winnerDisplayEndDay: null, winnerDisplayEndTime: null };
+    const updatedData = { ...storedData, votingSchedule: scheduleWithNull };
+
+    mockGet
+      .mockResolvedValueOnce({ exists: true })
+      .mockResolvedValueOnce({ exists: true, data: () => updatedData });
+
+    mockRequest = { body: { votingSchedule: scheduleWithNull } };
+
+    // Act
+    await updateVotingSchedule(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({ votingSchedule: scheduleWithNull, updatedAt: expect.any(Date) });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+  });
+});
+
+describe('changePassword', () => {
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let mockJson: jest.Mock;
+  let mockStatus: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockUpdate: jest.Mock;
+  let mockDoc: jest.Mock;
+  let mockCollection: jest.Mock;
+
+  const storedData = {
+    clubName: 'Test Film Club',
+    timezone: 'Europe/London',
+    votingSchedule: { openDay: 1, closeDay: 5, openTime: '18:00', closeTime: '23:59' },
+    passwordHash: 'existing_hash',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockJson = jest.fn();
+    mockStatus = jest.fn().mockReturnThis();
+    mockResponse = { status: mockStatus, json: mockJson };
+
+    mockUpdate = jest.fn().mockResolvedValue(undefined);
+    mockGet = jest.fn();
+    mockDoc = jest.fn().mockReturnValue({ get: mockGet, update: mockUpdate });
+    mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    (mockDb.collection as jest.Mock).mockImplementation(mockCollection);
+
+    mockHashPassword.mockResolvedValue('new_hashed_password');
+    mockVerifyPassword.mockResolvedValue(true);
+    mockValidatePassword.mockReturnValue({ isValid: true });
+  });
+
+  it('returns 400 when currentPassword is missing', async () => {
+    // Arrange
+    mockRequest = { body: { newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required fields: currentPassword, newPassword' });
+  });
+
+  it('returns 400 when newPassword is missing', async () => {
+    // Arrange
+    mockRequest = { body: { currentPassword: 'OldPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required fields: currentPassword, newPassword' });
+  });
+
+  it('returns 404 when club is not configured', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: false });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(404);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured.' });
+  });
+
+  it('returns 401 when current password is incorrect', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockVerifyPassword.mockResolvedValue(false);
+    mockRequest = { body: { currentPassword: 'WrongPass!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockVerifyPassword).toHaveBeenCalledWith('WrongPass!', storedData.passwordHash);
+    expect(mockStatus).toHaveBeenCalledWith(401);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Current password is incorrect.' });
+  });
+
+  it('returns 400 when new password fails validation', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockValidatePassword.mockReturnValue({ isValid: false, error: 'Password must be at least 8 characters' });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'short' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Password must be at least 8 characters' });
+  });
+
+  it('hashes the new password and updates Firestore on success', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true, data: () => storedData });
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockHashPassword).toHaveBeenCalledWith('NewPass123!');
+    expect(mockUpdate).toHaveBeenCalledWith({
+      passwordHash: 'new_hashed_password',
+      updatedAt: expect.any(Date),
+    });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    // Arrange
+    mockGet.mockRejectedValue(new Error('Firestore unavailable'));
+    mockRequest = { body: { currentPassword: 'OldPass123!', newPassword: 'NewPass123!' } };
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    await changePassword(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('updateClubName', () => {
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let mockJson: jest.Mock;
+  let mockStatus: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockUpdate: jest.Mock;
+  let mockDoc: jest.Mock;
+  let mockCollection: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockJson = jest.fn();
+    mockStatus = jest.fn().mockReturnThis();
+    mockResponse = { status: mockStatus, json: mockJson };
+
+    mockUpdate = jest.fn().mockResolvedValue(undefined);
+    mockGet = jest.fn();
+    mockDoc = jest.fn().mockReturnValue({ get: mockGet, update: mockUpdate });
+    mockCollection = jest.fn().mockReturnValue({ doc: mockDoc });
+    (mockDb.collection as jest.Mock).mockImplementation(mockCollection);
+  });
+
+  it('returns 400 when clubName is missing from body', async () => {
+    // Arrange
+    mockRequest = { body: {} };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required field: clubName' });
+  });
+
+  it('returns 400 when clubName is an empty string', async () => {
+    // Arrange
+    mockRequest = { body: { clubName: '   ' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required field: clubName' });
+  });
+
+  it('returns 404 when club is not configured', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: false });
+    mockRequest = { body: { clubName: 'New Club Name' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockStatus).toHaveBeenCalledWith(404);
+    expect(mockJson).toHaveBeenCalledWith({ error: 'Club not configured.' });
+  });
+
+  it('returns 200 with success and trimmed clubName on success', async () => {
+    // Arrange
+    mockGet.mockResolvedValue({ exists: true });
+    mockRequest = { body: { clubName: '  My New Club  ' } };
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
+
+    // Assert
+    expect(mockUpdate).toHaveBeenCalledWith({
+      clubName: 'My New Club',
+      updatedAt: expect.any(Date),
+    });
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith({ success: true, clubName: 'My New Club' });
+  });
+
+  it('returns 500 on unexpected error', async () => {
+    // Arrange
+    mockGet.mockRejectedValue(new Error('Firestore unavailable'));
+    mockRequest = { body: { clubName: 'Test Club' } };
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Act
+    await updateClubName(mockRequest as Request, mockResponse as Response);
 
     // Assert
     expect(mockStatus).toHaveBeenCalledWith(500);

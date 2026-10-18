@@ -14,8 +14,21 @@
   let isAdmin = false;
   let logoutLoading = false;
   let mounted = false;
+  let clubName = 'Film Club';
   let lastWinner: VotingHistoryRecord | null = null;
   let winnerStreaming: StreamingService[] | undefined = undefined;
+
+  function getNextOccurrenceAfter(baseDate: Date, day: number, time: string): Date {
+    const [hours, minutes] = time.split(':').map(Number);
+    const result = new Date(baseDate);
+    result.setHours(hours, minutes, 0, 0);
+    let daysAhead = day - result.getDay();
+    if (daysAhead < 0 || (daysAhead === 0 && result <= baseDate)) {
+      daysAhead += 7;
+    }
+    result.setDate(result.getDate() + daysAhead);
+    return result;
+  }
 
   onMount(async () => {
     auth.init();
@@ -27,14 +40,33 @@
       }
     });
 
+    let winnerDisplayEndDay: number | null = null;
+    let winnerDisplayEndTime: string | null = null;
+    try {
+      const configResult = await api.getConfig();
+      if (configResult.config?.clubName) clubName = configResult.config.clubName;
+      const vs = configResult.config?.votingSchedule;
+      if (vs?.winnerDisplayEndDay != null && vs?.winnerDisplayEndTime) {
+        winnerDisplayEndDay = vs.winnerDisplayEndDay;
+        winnerDisplayEndTime = vs.winnerDisplayEndTime;
+      }
+    } catch {}
+
     try {
       const data = await api.getVotingHistory(1);
       const latest = data.history?.[0];
       if (latest?.winner) {
-        lastWinner = latest;
-        api.getStreamingAvailability(latest.winner.filmId)
-          .then(res => { winnerStreaming = res.services; })
-          .catch(() => { winnerStreaming = []; });
+        let showWinner = true;
+        if (winnerDisplayEndDay != null && winnerDisplayEndTime) {
+          const endTime = getNextOccurrenceAfter(new Date(latest.closedAt), winnerDisplayEndDay, winnerDisplayEndTime);
+          showWinner = new Date() < endTime;
+        }
+        if (showWinner) {
+          lastWinner = latest;
+          api.getStreamingAvailability(latest.winner.filmId)
+            .then(res => { winnerStreaming = res.services; })
+            .catch(() => { winnerStreaming = []; });
+        }
       }
     } catch {
       // Non-critical - home page still works without this
@@ -72,7 +104,7 @@
           Now Showing
         </div>
         <h1 class="text-headline gold-shimmer mb-4">
-          Film Club
+          {clubName}
         </h1>
         <div class="text-subtitle opacity-80">
           What would you like to do?
@@ -248,7 +280,7 @@
               <h2 class="text-title mb-2" style="color: var(--accent-red);">
                 {logoutLoading ? 'Exiting...' : 'Exit'}
               </h2>
-              <p class="text-small opacity-70">Sign out of Film Club</p>
+              <p class="text-small opacity-70">Sign out of {clubName}</p>
             </div>
           </CinemaCard>
         </div>

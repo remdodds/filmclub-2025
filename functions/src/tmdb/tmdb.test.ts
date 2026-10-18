@@ -308,7 +308,7 @@ describe('getWatchProviders', () => {
     );
   });
 
-  it('returns mapped StreamingService array from GB flatrate providers', async () => {
+  it('returns mapped StreamingService array from GB flatrate providers with type flatrate', async () => {
     // Arrange
     const mockProviders = [
       { provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' },
@@ -324,8 +324,48 @@ describe('getWatchProviders', () => {
 
     // Assert
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' });
-    expect(result[1]).toEqual({ provider_id: 337, provider_name: 'Disney Plus', logo_path: '/disney.jpg' });
+    expect(result[0]).toEqual({ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg', type: 'flatrate' });
+    expect(result[1]).toEqual({ provider_id: 337, provider_name: 'Disney Plus', logo_path: '/disney.jpg', type: 'flatrate' });
+  });
+
+  it('returns rent providers with type rent when only rent providers are available', async () => {
+    // Arrange
+    const mockRentProviders = [
+      { provider_id: 10, provider_name: 'Amazon Video', logo_path: '/amazon.jpg' },
+    ];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { GB: { rent: mockRentProviders } } }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ provider_id: 10, provider_name: 'Amazon Video', logo_path: '/amazon.jpg', type: 'rent' });
+  });
+
+  it('returns flatrate providers first then rent providers when both exist', async () => {
+    // Arrange
+    const mockFlatrateProviders = [
+      { provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg' },
+    ];
+    const mockRentProviders = [
+      { provider_id: 10, provider_name: 'Amazon Video', logo_path: '/amazon.jpg' },
+    ];
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: { GB: { flatrate: mockFlatrateProviders, rent: mockRentProviders } } }),
+    } as Response);
+
+    // Act
+    const result = await getWatchProviders(603, FAKE_API_KEY);
+
+    // Assert
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ provider_id: 8, provider_name: 'Netflix', logo_path: '/netflix.jpg', type: 'flatrate' });
+    expect(result[1]).toEqual({ provider_id: 10, provider_name: 'Amazon Video', logo_path: '/amazon.jpg', type: 'rent' });
   });
 
   it('uses a custom country code when provided', async () => {
@@ -345,11 +385,11 @@ describe('getWatchProviders', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('returns empty array when country has no flatrate providers', async () => {
+  it('returns empty array when country has neither flatrate nor rent providers', async () => {
     // Arrange
     fetchSpy.mockResolvedValue({
       ok: true,
-      json: async () => ({ results: { GB: { rent: [] } } }),
+      json: async () => ({ results: { GB: {} } }),
     } as Response);
 
     // Act

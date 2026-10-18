@@ -24,16 +24,16 @@ jest.mock('./utils/auth', () => ({ validateSession: jest.fn(), isAdminUser: jest
 jest.mock('./api/auth', () => ({ login: jest.fn(), logout: jest.fn(), checkSession: jest.fn(), loginWithGoogle: jest.fn() }));
 jest.mock('./api/films', () => ({ listFilms: jest.fn(), addFilm: jest.fn(), deleteFilm: jest.fn(), getHistory: jest.fn(), searchFilms: jest.fn(), getStreamingAvailability: jest.fn() }));
 jest.mock('./api/votes', () => ({ getCurrentVoting: jest.fn(), submitVote: jest.fn(), getLatestResults: jest.fn() }));
-jest.mock('./api/config', () => ({ getConfig: jest.fn(), setupClub: jest.fn(), updateVotingSchedule: jest.fn() }));
+jest.mock('./api/config', () => ({ getConfig: jest.fn(), setupClub: jest.fn(), updateVotingSchedule: jest.fn(), changePassword: jest.fn(), updateClubName: jest.fn() }));
 jest.mock('./api/history', () => ({ getHistory: jest.fn() }));
 jest.mock('./api/admin', () => ({ getAdminVotes: jest.fn(), openRound: jest.fn(), selectWinner: jest.fn(), clearNominatedFilms: jest.fn(), deleteHistoryRecord: jest.fn(), updateHistoryRecord: jest.fn() }));
-jest.mock('./scheduled/openVoting', () => ({ openVotingRound: jest.fn() }));
-jest.mock('./scheduled/closeVoting', () => ({ closeVotingRound: jest.fn() }));
+jest.mock('./scheduled/openVoting', () => ({ openVotingRound: jest.fn(), tryOpenVotingRound: jest.fn() }));
+jest.mock('./scheduled/closeVoting', () => ({ closeVotingRound: jest.fn(), tryCloseVotingRound: jest.fn() }));
 
 import { validateSession, isAdminUser } from './utils/auth';
 import * as filmsApi from './api/films';
-import { openVotingRound } from './scheduled/openVoting';
-import { closeVotingRound } from './scheduled/closeVoting';
+import { openVotingRound, tryOpenVotingRound } from './scheduled/openVoting';
+import { closeVotingRound, tryCloseVotingRound } from './scheduled/closeVoting';
 
 const mockValidateSession = validateSession as jest.Mock;
 const mockIsAdminUser = isAdminUser as jest.Mock;
@@ -181,6 +181,33 @@ describe('CORS middleware', () => {
     // Assert — CORS middleware short-circuits before auth
     expect(status).toBe(200);
   });
+
+  it('includes PATCH in the Access-Control-Allow-Methods header', async () => {
+    // Arrange
+    let capturedMethods = '';
+    const res: any = {
+      setHeader: jest.fn(),
+      getHeader: jest.fn(),
+      removeHeader: jest.fn(),
+      header: jest.fn().mockImplementation((name: string, value: string) => {
+        if (name === 'Access-Control-Allow-Methods') capturedMethods = value;
+        return res;
+      }),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      sendStatus: jest.fn().mockImplementation(() => {}),
+    };
+    const req: any = { method: 'OPTIONS', url: '/admin/club-name', path: '/admin/club-name', headers: {}, body: {}, query: {}, params: {} };
+
+    // Act
+    await new Promise<void>((resolve) => {
+      res.sendStatus = jest.fn().mockImplementation(() => resolve());
+      app(req, res, () => resolve());
+    });
+
+    // Assert
+    expect(capturedMethods).toContain('PATCH');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -293,28 +320,78 @@ describe('POST /test/close-voting', () => {
 // ---------------------------------------------------------------------------
 
 describe('openVoting scheduled handler', () => {
-  it('calls openVotingRound when the scheduled handler is invoked', async () => {
+  it('calls tryOpenVotingRound when the scheduled handler is invoked', async () => {
     // Arrange
-    (openVotingRound as jest.Mock).mockResolvedValue(undefined);
+    (tryOpenVotingRound as jest.Mock).mockResolvedValue(undefined);
 
     // Act — indexModule.openVoting is the handler function (onSchedule mock returns the handler)
     await indexModule.openVoting();
 
     // Assert
-    expect(openVotingRound).toHaveBeenCalled();
+    expect(tryOpenVotingRound).toHaveBeenCalled();
   });
 });
 
 describe('closeVoting scheduled handler', () => {
-  it('calls closeVotingRound when the scheduled handler is invoked', async () => {
+  it('calls tryCloseVotingRound when the scheduled handler is invoked', async () => {
     // Arrange
-    (closeVotingRound as jest.Mock).mockResolvedValue(undefined);
+    (tryCloseVotingRound as jest.Mock).mockResolvedValue(undefined);
 
     // Act
     await indexModule.closeVoting();
 
     // Assert
-    expect(closeVotingRound).toHaveBeenCalled();
+    expect(tryCloseVotingRound).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /admin/club-name route
+// ---------------------------------------------------------------------------
+
+describe('PATCH /admin/club-name', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns 401 when no auth token is provided', async () => {
+    // Act
+    const { status, body } = await dispatch('PATCH', '/admin/club-name');
+
+    // Assert
+    expect(status).toBe(401);
+    expect(body).toEqual({ error: 'Unauthorized. No session token provided.' });
+  });
+
+  it('returns 403 when user is not an admin', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('non-admin-uid');
+    mockIsAdminUser.mockResolvedValue(false);
+
+    // Act
+    const { status, body } = await dispatch('PATCH', '/admin/club-name', { authorization: 'Bearer valid-token' });
+
+    // Assert
+    expect(status).toBe(403);
+    expect(body).toEqual({ error: 'Forbidden. Admin access required.' });
+  });
+
+  it('calls updateClubName handler when user is authenticated and admin', async () => {
+    // Arrange
+    mockValidateSession.mockResolvedValue('admin-uid');
+    mockIsAdminUser.mockResolvedValue(true);
+    const configApi = await import('./api/config');
+    (configApi.updateClubName as jest.Mock).mockImplementation((_req: any, res: any) => {
+      res.status(200).json({ success: true, clubName: 'Test Club' });
+    });
+
+    // Act
+    const { status, body } = await dispatch('PATCH', '/admin/club-name', { authorization: 'Bearer admin-token' });
+
+    // Assert
+    expect(configApi.updateClubName).toHaveBeenCalled();
+    expect(status).toBe(200);
+    expect(body).toEqual({ success: true, clubName: 'Test Club' });
   });
 });
 

@@ -52,4 +52,65 @@ test.describe('Admin panel', () => {
       await expect(page.getByRole('button', { name: 'Run Winner Selection' })).toBeVisible();
     }
   });
+
+  test('shows the Change Club Password section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Change Club Password' })).toBeVisible();
+  });
+
+  test('change password form has current, new, and confirm fields', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.locator('#currentPassword')).toBeVisible();
+    await expect(page.locator('#newPassword')).toBeVisible();
+    await expect(page.locator('#confirmNewPassword')).toBeVisible();
+  });
+
+  test('Change Password button is disabled when fields are empty', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Change Password' })).toBeDisabled();
+  });
+
+  test('Change Password button enables when all fields are filled', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await page.locator('#currentPassword').fill('OldPass123!');
+    await page.locator('#newPassword').fill('NewPass123!');
+    await page.locator('#confirmNewPassword').fill('NewPass123!');
+    await expect(page.getByRole('button', { name: 'Change Password' })).toBeEnabled();
+  });
+
+  test('shows the Change Club Name section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Change Club Name' })).toBeVisible();
+  });
+
+  test('Save Club Name button is disabled when field is empty', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Save Club Name' })).toBeDisabled();
+  });
+
+  test('Save Club Name button enables when a name is entered', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await page.locator('#newClubName').fill('New Club Name');
+    await expect(page.getByRole('button', { name: 'Save Club Name' })).toBeEnabled();
+  });
+
+  test('shows the Voting Schedule section', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('heading', { name: 'Voting Schedule' })).toBeVisible();
+  });
+
+  test('voting schedule section has open and close day selects and time inputs', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    const scheduleCard = page.locator('.card', { hasText: 'Voting Schedule' });
+    await expect(scheduleCard.locator('select').first()).toBeVisible();
+    await expect(scheduleCard.locator('input[type="time"]').first()).toBeVisible();
+    await expect(scheduleCard.locator('select').nth(1)).toBeVisible();
+    await expect(scheduleCard.locator('input[type="time"]').nth(1)).toBeVisible();
+  });
+
+  test('Save Schedule button is visible and enabled', async ({ page }) => {
+    await page.waitForSelector('.loading', { state: 'detached', timeout: 10_000 }).catch(() => {});
+    await expect(page.getByRole('button', { name: 'Save Schedule' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save Schedule' })).toBeEnabled();
+  });
 });

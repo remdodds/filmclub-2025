@@ -461,4 +461,5 @@ describe('loginWithGoogle', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
 });

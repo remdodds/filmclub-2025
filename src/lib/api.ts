@@ -1,4 +1,6 @@
+import { goto } from '$app/navigation';
 import type { FilmSuggestion, StreamingService } from '$lib/types';
+import { auth } from './stores';
 
 const API_BASE = 'https://us-central1-filmclubapi.cloudfunctions.net/api';
 
@@ -9,6 +11,10 @@ function getToken(): string {
 
 async function handleResponse(res: Response) {
   if (!res.ok) {
+    if (res.status === 401) {
+      auth.logout();
+      goto('/');
+    }
     const error = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');
   }
@@ -199,6 +205,49 @@ export const api = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ winnerTitle }),
+    });
+    return handleResponse(res);
+  },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    const res = await fetch(`${API_BASE}/admin/change-password`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return handleResponse(res);
+  },
+
+  async updateClubName(clubName: string) {
+    const res = await fetch(`${API_BASE}/admin/club-name`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ clubName }),
+    });
+    return handleResponse(res);
+  },
+
+  async updateVotingSchedule(votingSchedule: {
+    openDay: number;
+    openTime: string;
+    closeDay: number;
+    closeTime: string;
+    winnerDisplayEndDay?: number | null;
+    winnerDisplayEndTime?: string | null;
+  }) {
+    const res = await fetch(`${API_BASE}/config/voting-schedule`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ votingSchedule }),
     });
     return handleResponse(res);
   }
