@@ -72,6 +72,8 @@ Voting can also be opened and closed manually by any member via the admin panel.
 - Each member votes by rating each film 0–3; they can change their vote until the round closes
 - The Condorcet winner is the film preferred over all others in pairwise comparison; if a cycle exists (Rock-Paper-Scissors paradox), total score is used as a tiebreaker
 - Watch history is permanent — watched films are never re-nominated
+- Pearl Harbor cannot be nominated (any case/punctuation, "Harbor" or "Harbour", optional trailing year): the nominate page shows an easter-egg overlay and `POST /films` rejects it with 409 (`isPearlHarbor` / `canNominateFilm` in `films/films.logic.ts`)
+- If a Pearl Harbor film is ever among a round's candidates, at tally time each voter's rating for it is moved to one other candidate chosen pseudo-randomly but deterministically (seeded by round ID + visitor ID; on collision the higher rating is kept) and Pearl Harbor is removed from the candidates so it cannot win — unless it is the round's only candidate, in which case its ratings are dropped but it remains selectable (`voting/pearlHarbor.ts`). Stored votes are never modified
 - Authentication: Google Sign-In + a single shared club password (no per-user password management)
 - Sessions last 7 days; votes are tracked by visitor ID (UUID v4), not by user account
 

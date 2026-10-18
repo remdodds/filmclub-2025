@@ -36,8 +36,14 @@ export async function installMockRoutes(page: Page): Promise<void> {
   );
 
   // /films/:id  (GET detail, DELETE)
+  // Playwright runs matching handlers in REVERSE registration order, so this
+  // single-segment wildcard is consulted before the /films/search and
+  // /films/history handlers above.  Fall back for those paths explicitly.
   await page.route('**/api/films/*', async (route) => {
-    if (route.request().method() === 'DELETE') {
+    const { pathname } = new URL(route.request().url());
+    if (/\/films\/(search|history)$/.test(pathname)) {
+      await route.fallback();
+    } else if (route.request().method() === 'DELETE') {
       await route.fulfill({ status: 200, json: { message: 'Film deleted' } });
     } else {
       await route.fulfill({ status: 200, json: { message: 'ok' } });

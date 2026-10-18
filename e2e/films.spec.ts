@@ -1,4 +1,45 @@
+import { test as browserlessTest, type Page } from '@playwright/test';
 import { test, expect } from './support/fixtures';
+import { isPearlHarbor } from '../src/lib/easterEggs';
+
+/**
+ * Intercepts POST /films for the current test (so nothing is ever nominated
+ * against a real backend) and records each POST body that gets through.
+ * Routes registered later take precedence over the shared mock routes.
+ */
+async function stubFilmPosts(page: Page): Promise<string[]> {
+  const posts: string[] = [];
+  await page.route('**/api/films', async (route) => {
+    if (route.request().method() === 'POST') {
+      posts.push(route.request().postData() ?? '');
+      await route.fulfill({ status: 201, json: { message: 'Film added' } });
+    } else {
+      await route.fallback();
+    }
+  });
+  return posts;
+}
+
+/** Enough fake time for the nominate page's 350ms search debounce to fire. */
+const SEARCH_DEBOUNCE_SETTLE_MS = 500;
+
+/** The search result card containing the given film title. */
+function resultCard(page: Page, title: string) {
+  return page
+    .locator('.results-list > div')
+    .filter({ has: page.getByText(title, { exact: true }) })
+    .first();
+}
+
+/**
+ * Searches for a film and clicks its Nominate button.  Pass advanceClock when
+ * the test has installed a fake clock, so the search debounce still fires.
+ */
+async function nominateFromSearch(page: Page, title: string, { advanceClock = false } = {}) {
+  await page.getByPlaceholder('Type a film title...').fill(title);
+  if (advanceClock) await page.clock.runFor(SEARCH_DEBOUNCE_SETTLE_MS);
+  await resultCard(page, title).getByRole('button', { name: /Nominate/i }).click();
+}
 
 test.describe('Nominated Films page', () => {
   test.beforeEach(async ({ page }) => {
@@ -117,6 +158,115 @@ test.describe('Nominate a Film page', () => {
     }
   });
 
+  test('nominating Pearl Harbor shows the GET FUCKED overlay instead of submitting', async ({ page }) => {
+    const filmPosts = await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Pearl Harbor');
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toContainText('GET FUCKED');
+    await expect(page).toHaveURL('/films/nominate');
+    expect(filmPosts).toHaveLength(0);
+  });
+
+  test('the Pearl Harbor overlay covers the whole screen', async ({ page }) => {
+    await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Pearl Harbor');
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+    const box = await overlay.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(box).toEqual({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+  });
+
+  test('the Pearl Harbor overlay can be dismissed with its button', async ({ page }) => {
+    const filmPosts = await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Pearl Harbor');
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+    await overlay.getByRole('button', { name: /dismiss/i }).click();
+
+    await expect(overlay).toHaveCount(0);
+    await expect(page).toHaveURL('/films/nominate');
+    expect(filmPosts).toHaveLength(0);
+  });
+
+  test('the Pearl Harbor overlay can be dismissed by tapping anywhere on it', async ({ page }) => {
+    await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Pearl Harbor');
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+    await overlay.click({ position: { x: 10, y: 10 } });
+
+    await expect(overlay).toHaveCount(0);
+  });
+
+  test('the Pearl Harbor overlay can be dismissed with the Escape key', async ({ page }) => {
+    await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Pearl Harbor');
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(overlay).toHaveCount(0);
+  });
+
+  test('the Pearl Harbor overlay dismisses itself after 5 seconds', async ({ page }) => {
+    await stubFilmPosts(page);
+    await page.clock.install();
+
+    await nominateFromSearch(page, 'Pearl Harbor', { advanceClock: true });
+
+    const overlay = page.getByRole('alertdialog');
+    await expect(overlay).toBeVisible();
+
+    await page.clock.runFor(4_000);
+    await expect(overlay).toBeVisible();
+
+    await page.clock.runFor(1_500);
+    await expect(overlay).toHaveCount(0);
+  });
+
+  test('re-opening the Pearl Harbor overlay restarts its auto-dismiss timer', async ({ page }) => {
+    await stubFilmPosts(page);
+    await page.clock.install();
+
+    const overlay = page.getByRole('alertdialog');
+
+    await nominateFromSearch(page, 'Pearl Harbor', { advanceClock: true });
+    await expect(overlay).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(overlay).toHaveCount(0);
+
+    await page.clock.runFor(3_000);
+    await resultCard(page, 'Pearl Harbor').getByRole('button', { name: /Nominate/i }).click();
+    await expect(overlay).toBeVisible();
+
+    // 3s into the second showing — the first showing's timer would have fired by now
+    await page.clock.runFor(3_000);
+    await expect(overlay).toBeVisible();
+  });
+
+  test('nominating a normal film still submits it and returns to the list', async ({ page }) => {
+    const filmPosts = await stubFilmPosts(page);
+
+    await nominateFromSearch(page, 'Inception');
+
+    await expect(page).toHaveURL('/films');
+    expect(filmPosts).toHaveLength(1);
+    expect(JSON.parse(filmPosts[0])).toEqual({ title: 'Inception' });
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
   test('each result has a Nominate button', async ({ page }) => {
     const input = page.getByPlaceholder('Type a film title...');
     await input.fill('Inception');
@@ -126,6 +276,31 @@ test.describe('Nominate a Film page', () => {
     const hasResults = await page.locator('.results-list').isVisible().catch(() => false);
     if (hasResults) {
       await expect(page.locator('.results-list').getByRole('button', { name: /Nominate/i }).first()).toBeVisible();
+    }
+  });
+});
+
+// Pure, browser-free checks for the title matcher behind the easter egg.
+// The frontend has no unit runner, so these run under Playwright in Node
+// using the plain test object (no page, so no browser is launched).
+browserlessTest.describe('Pearl Harbor title matcher', () => {
+  browserlessTest('matches the British spelling "pearl harbour"', () => {
+    expect(isPearlHarbor('pearl harbour')).toBe(true);
+  });
+
+  browserlessTest('matches an upper-case title with a release year "PEARL HARBOR (2001)"', () => {
+    expect(isPearlHarbor('PEARL HARBOR (2001)')).toBe(true);
+  });
+
+  browserlessTest('ignores punctuation and extra whitespace', () => {
+    expect(isPearlHarbor('  Pearl-Harbor!! ')).toBe(true);
+    expect(isPearlHarbor('pearl   harbor')).toBe(true);
+    expect(isPearlHarbor('Pearl Harbor.')).toBe(true);
+  });
+
+  browserlessTest('does not match other films', () => {
+    for (const title of ['Inception', 'Pearl', 'Harbor', 'Tora! Tora! Tora!', 'Pearl Harbor 2', 'The Pearl Harbor Story', '']) {
+      expect(isPearlHarbor(title), title).toBe(false);
     }
   });
 });

@@ -10,6 +10,7 @@ import { getDefaultAlgorithm } from '../voting/index';
 import { Ballot, FilmCandidate, VotingResults } from '../voting/types';
 import { markFilmAsWatched, Film } from '../films/films.logic';
 import { archiveVotingRound } from '../history/votingHistory';
+import { reassignPearlHarborVotes } from '../voting/pearlHarbor';
 
 /**
  * Closes the current voting round and determines the winner
@@ -18,6 +19,8 @@ import { archiveVotingRound } from '../history/votingHistory';
  * 1. Gets the current open voting round
  * 2. Retrieves all ballots
  * 3. Gets all candidate films
+ *    (Pearl Harbor ratings are reassigned to other films and Pearl Harbor is
+ *    dropped from the candidates — see voting/pearlHarbor.ts)
  * 4. Runs the Condorcet algorithm to determine winner
  * 5. Marks winning film as watched
  * 6. Removes winner from nominations
@@ -52,7 +55,7 @@ export async function closeVotingRound(): Promise<void> {
       .collection('ballots')
       .get();
 
-    const ballots: Ballot[] = ballotsSnapshot.docs.map((doc) => {
+    const storedBallots: Ballot[] = ballotsSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         visitorId: data.visitorId,
@@ -61,7 +64,7 @@ export async function closeVotingRound(): Promise<void> {
       };
     });
 
-    console.log(`Found ${ballots.length} ballots`);
+    console.log(`Found ${storedBallots.length} ballots`);
 
     // Get candidate films
     const filmsSnapshot = await db
@@ -69,13 +72,21 @@ export async function closeVotingRound(): Promise<void> {
       .where('status', '==', 'nominated')
       .get();
 
-    const candidates: FilmCandidate[] = filmsSnapshot.docs.map((doc) => ({
+    const nominatedCandidates: FilmCandidate[] = filmsSnapshot.docs.map((doc) => ({
       id: doc.id,
       title: doc.data().title,
       addedBy: doc.data().addedBy,
     }));
 
-    console.log(`Found ${candidates.length} candidates`);
+    console.log(`Found ${nominatedCandidates.length} candidates`);
+
+    // Easter egg: Pearl Harbor's ratings are moved elsewhere before tallying.
+    // Stored ballots are not modified.
+    const { ballots, candidates } = reassignPearlHarborVotes(
+      roundId,
+      storedBallots,
+      nominatedCandidates
+    );
 
     // Calculate winner using Condorcet algorithm
     const algorithm = getDefaultAlgorithm();

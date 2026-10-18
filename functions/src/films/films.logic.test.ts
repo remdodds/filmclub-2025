@@ -8,10 +8,48 @@ import {
   createFilmNomination,
   markFilmAsWatched,
   sortFilmsByDate,
+  isPearlHarbor,
   Film,
 } from './films.logic';
 
 describe('Film Business Logic', () => {
+  describe('isPearlHarbor', () => {
+    it('should match the exact title "Pearl Harbor"', () => {
+      expect(isPearlHarbor('Pearl Harbor')).toBe(true);
+    });
+
+    it('should match regardless of case and surrounding or extra whitespace', () => {
+      expect(isPearlHarbor('PEARL harbor')).toBe(true);
+      expect(isPearlHarbor('  pearl    harbor  ')).toBe(true);
+    });
+
+    it('should ignore punctuation', () => {
+      expect(isPearlHarbor('Pearl-Harbor!')).toBe(true);
+      expect(isPearlHarbor('Pearl Harbor.')).toBe(true);
+    });
+
+    it('should accept the British spelling "Harbour"', () => {
+      expect(isPearlHarbor('Pearl Harbour')).toBe(true);
+    });
+
+    it('should ignore a trailing release year such as "(2001)"', () => {
+      expect(isPearlHarbor('Pearl Harbor (2001)')).toBe(true);
+      expect(isPearlHarbor('pearl harbour (2001)  ')).toBe(true);
+    });
+
+    it('should not match sequels, partial titles or longer titles', () => {
+      expect(isPearlHarbor('Pearl Harbor 2')).toBe(false);
+      expect(isPearlHarbor('Pearl')).toBe(false);
+      expect(isPearlHarbor('The Pearl Harbor Story')).toBe(false);
+      expect(isPearlHarbor('Harbor')).toBe(false);
+    });
+
+    it('should not match unrelated or empty titles', () => {
+      expect(isPearlHarbor('The Matrix')).toBe(false);
+      expect(isPearlHarbor('')).toBe(false);
+    });
+  });
+
   describe('normalizeFilmTitle', () => {
     it('should convert to lowercase', () => {
       expect(normalizeFilmTitle('The GODFATHER')).toBe('the godfather');
@@ -190,6 +228,19 @@ describe('Film Business Logic', () => {
 
       expect(result.canNominate).toBe(true);
       expect(result.reason).toBeUndefined();
+    });
+
+    it('should reject Pearl Harbor even when it is not a duplicate', () => {
+      const result = canNominateFilm('Pearl Harbour (2001)', nominatedFilms, watchedFilms);
+
+      expect(result.canNominate).toBe(false);
+      expect(result.reason).toBe('Pearl Harbor cannot be nominated. Nice try.');
+    });
+
+    it('should reject Pearl Harbor when no film lists are given', () => {
+      const result = canNominateFilm('pearl harbor', []);
+
+      expect(result.canNominate).toBe(false);
     });
 
     it('should reject already nominated film', () => {

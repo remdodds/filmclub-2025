@@ -1,7 +1,9 @@
 import { closeVotingRound } from './closeVoting';
 import { db } from '../utils/db';
 import { getDefaultAlgorithm } from '../voting/index';
-import { markFilmAsWatched } from '../films/films.logic';
+import { markFilmAsWatched, isPearlHarbor } from '../films/films.logic';
+import { CondorcetVoting } from '../voting/condorcet';
+import { seededIndex } from '../voting/pearlHarbor';
 import { archiveVotingRound } from '../history/votingHistory';
 import { VotingResults, Ballot, FilmCandidate } from '../voting/types';
 import { Film } from '../films/films.logic';
@@ -18,6 +20,7 @@ jest.mock('../history/votingHistory');
 const mockGetDefaultAlgorithm = getDefaultAlgorithm as jest.MockedFunction<typeof getDefaultAlgorithm>;
 const mockMarkFilmAsWatched = markFilmAsWatched as jest.MockedFunction<typeof markFilmAsWatched>;
 const mockArchiveVotingRound = archiveVotingRound as jest.MockedFunction<typeof archiveVotingRound>;
+const mockIsPearlHarbor = isPearlHarbor as jest.MockedFunction<typeof isPearlHarbor>;
 
 // ---------------------------------------------------------------------------
 // Fixture factories
@@ -585,5 +588,91 @@ describe('closeVotingRound', () => {
 
     // Act & Assert
     await expect(closeVotingRound()).rejects.toThrow('Ballots query failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pearl Harbor easter egg — integration with the real tally
+// ---------------------------------------------------------------------------
+
+describe('closeVotingRound – Pearl Harbor vote reassignment', () => {
+  const PEARL_ID = 'film-pearl';
+  const ROUND_ID = 'round-123';
+  const OTHER_IDS = ['film-1', 'film-2'];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Use the real title matcher for these tests (films.logic is auto-mocked above).
+    const actualLogic = jest.requireActual('../films/films.logic');
+    mockIsPearlHarbor.mockImplementation(actualLogic.isPearlHarbor);
+  });
+
+  afterEach(() => {
+    mockIsPearlHarbor.mockReset();
+    jest.restoreAllMocks();
+  });
+
+  /** Wire mocks, then swap in the real Condorcet algorithm with a spy on it. */
+  function wireWithRealCondorcet(opts: WireOptions) {
+    const mocks = wireMocks(opts);
+    const condorcet = new CondorcetVoting();
+    const calculateWinnerSpy = jest.spyOn(condorcet, 'calculateWinner');
+    mockGetDefaultAlgorithm.mockReturnValue(condorcet);
+    return { ...mocks, calculateWinnerSpy };
+  }
+
+  it('moves every Pearl Harbor rating to a seeded other film so Pearl Harbor cannot win', async () => {
+    // Arrange — everyone loves Pearl Harbor; it would win outright without the easter egg
+    const submittedAt = new Date('2026-03-20T09:00:00.000Z');
+    const voters = ['visitor-1', 'visitor-2', 'visitor-3'];
+    const ballotDocs = voters.map((visitorId) =>
+      makeBallotDoc(
+        visitorId,
+        [
+          { filmId: 'film-1', score: 1 },
+          { filmId: PEARL_ID, score: 3 },
+          { filmId: 'film-2', score: 0 },
+        ],
+        submittedAt
+      )
+    );
+    const filmDocs = [
+      makeFilmDoc('film-1', 'The Matrix', 'visitor-1'),
+      makeFilmDoc(PEARL_ID, 'Pearl Harbor', 'visitor-2'),
+      makeFilmDoc('film-2', 'Inception', 'visitor-3'),
+    ];
+    const { calculateWinnerSpy, mockRoundUpdate } = wireWithRealCondorcet({ ballotDocs, filmDocs });
+
+    // Act
+    await closeVotingRound();
+
+    // Assert — the algorithm never saw Pearl Harbor as a candidate or in any ballot
+    const [ballotsSeen, candidatesSeen] = calculateWinnerSpy.mock.calls[0];
+    expect(candidatesSeen.map((c) => c.id)).toEqual(OTHER_IDS);
+    ballotsSeen.forEach((ballot) => {
+      expect(ballot.votes.some((v) => v.filmId === PEARL_ID)).toBe(false);
+      const target = OTHER_IDS[seededIndex(`${ROUND_ID}:${ballot.visitorId}`, OTHER_IDS.length)];
+      expect(ballot.votes.find((v) => v.filmId === target)!.score).toBe(3);
+    });
+
+    // ...and the recorded winner is not Pearl Harbor
+    const roundUpdate = mockRoundUpdate.mock.calls[0][0] as { winner: string };
+    expect(OTHER_IDS).toContain(roundUpdate.winner);
+  });
+
+  it('never randomly selects Pearl Harbor when no votes were cast', async () => {
+    // Arrange — Pearl Harbor is first, so Math.random() = 0 would pick it if it were eligible
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const filmDocs = [
+      makeFilmDoc(PEARL_ID, 'Pearl Harbour (2001)', 'visitor-1'),
+      makeFilmDoc('film-1', 'The Matrix', 'visitor-2'),
+    ];
+    const { mockRoundUpdate } = wireWithRealCondorcet({ ballotDocs: [], filmDocs });
+
+    // Act
+    await closeVotingRound();
+
+    // Assert
+    expect(mockRoundUpdate).toHaveBeenCalledWith(expect.objectContaining({ winner: 'film-1' }));
   });
 });

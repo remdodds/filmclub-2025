@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores';
   import { api } from '$lib/api';
@@ -10,6 +10,7 @@
   import CinemaCard from '$lib/components/CinemaCard.svelte';
   import MarqueeButton from '$lib/components/MarqueeButton.svelte';
   import { toast } from 'svelte-sonner';
+  import { isPearlHarbor } from '$lib/easterEggs';
 
   let mounted = false;
   let searchQuery = '';
@@ -19,6 +20,9 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const suggestionsCache = new Map<string, FilmSuggestion[]>();
   let inputEl: HTMLInputElement;
+  const PEARL_HARBOR_OVERLAY_MS = 5000;
+  let showPearlHarborOverlay = false;
+  let pearlHarborTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
     auth.init();
@@ -34,6 +38,8 @@
 
     return unsubscribe;
   });
+
+  onDestroy(clearPearlHarborTimer);
 
   function handleSearchInput() {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -64,7 +70,35 @@
     }, 350);
   }
 
+  function clearPearlHarborTimer() {
+    if (pearlHarborTimer) clearTimeout(pearlHarborTimer);
+    pearlHarborTimer = null;
+  }
+
+  function showPearlHarborEasterEgg() {
+    clearPearlHarborTimer();
+    showPearlHarborOverlay = true;
+    pearlHarborTimer = setTimeout(dismissPearlHarborOverlay, PEARL_HARBOR_OVERLAY_MS);
+  }
+
+  function dismissPearlHarborOverlay() {
+    clearPearlHarborTimer();
+    showPearlHarborOverlay = false;
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (showPearlHarborOverlay && event.key === 'Escape') {
+      dismissPearlHarborOverlay();
+    }
+  }
+
   async function handleNominate(suggestion: FilmSuggestion) {
+    // Easter egg requested by the club owner: Pearl Harbor is never nominated.
+    if (isPearlHarbor(suggestion.title)) {
+      showPearlHarborEasterEgg();
+      return;
+    }
+
     nominatingId = suggestion.tmdbId;
     try {
       await api.addFilm(suggestion.title);
@@ -76,6 +110,8 @@
     }
   }
 </script>
+
+<svelte:window on:keydown={handleWindowKeydown} />
 
 <div class="nominate-page min-h-screen">
   <div class="container mx-auto px-4 py-8 max-w-2xl">
@@ -208,6 +244,33 @@
   </div>
 </div>
 
+{#if showPearlHarborOverlay}
+  <!-- Easter egg: tap anywhere, press Escape, or wait to dismiss -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div
+    class="pearl-harbor-overlay fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 overflow-hidden cursor-pointer select-none"
+    role="alertdialog"
+    aria-modal="true"
+    aria-label="Pearl Harbor easter egg"
+    aria-describedby="pearl-harbor-message"
+    tabindex="-1"
+    data-testid="pearl-harbor-overlay"
+    on:click={dismissPearlHarborOverlay}
+  >
+    <div class="pearl-harbor-flash" aria-hidden="true"></div>
+    <span class="pearl-harbor-plane" aria-hidden="true">✈️</span>
+    <span class="pearl-harbor-bomb" aria-hidden="true">💣</span>
+
+    <p id="pearl-harbor-message" class="pearl-harbor-text text-center font-black leading-none px-4">
+      GET FUCKED
+    </p>
+
+    <button class="btn btn-accent btn-lg relative" on:click={dismissPearlHarborOverlay}>
+      Dismiss
+    </button>
+  </div>
+{/if}
+
 <style>
   .nominate-page {
     background: radial-gradient(ellipse at top, rgba(26, 26, 26, 0.6) 0%, var(--bg-theater) 50%);
@@ -223,5 +286,96 @@
     outline-offset: 2px;
     border-color: var(--accent-gold) !important;
     box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15) !important;
+  }
+  /* ── Pearl Harbor easter egg ─────────────────────────────────────────── */
+  .pearl-harbor-overlay {
+    background: radial-gradient(circle at center, rgba(120, 10, 10, 0.92) 0%, rgba(0, 0, 0, 0.97) 70%);
+    animation: overlayIn 200ms ease-out both;
+  }
+
+  .pearl-harbor-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff4c2;
+    pointer-events: none;
+    animation: flash 600ms ease-out both;
+  }
+
+  .pearl-harbor-text {
+    position: relative;
+    font-size: clamp(3rem, 16vw, 11rem);
+    color: #ffd23f;
+    text-shadow:
+      0 0 12px rgba(255, 80, 0, 0.9),
+      0 0 40px rgba(255, 0, 0, 0.7),
+      6px 6px 0 #7a0000;
+    animation:
+      bounceIn 700ms cubic-bezier(0.68, -0.55, 0.27, 1.55) both,
+      shake 450ms ease-in-out 700ms 3;
+  }
+
+  .pearl-harbor-plane {
+    position: absolute;
+    top: 12%;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    animation: flyBy 1600ms linear both;
+  }
+
+  .pearl-harbor-bomb {
+    position: absolute;
+    top: 0;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    animation: bombDrop 900ms ease-in 300ms both;
+  }
+
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes flash {
+    0% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes bounceIn {
+    0% { transform: scale(0.1) rotate(-12deg); opacity: 0; }
+    60% { transform: scale(1.25) rotate(4deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    20% { transform: translate(-10px, 4px) rotate(-2deg); }
+    40% { transform: translate(10px, -4px) rotate(2deg); }
+    60% { transform: translate(-8px, -2px) rotate(-1deg); }
+    80% { transform: translate(8px, 2px) rotate(1deg); }
+  }
+
+  @keyframes flyBy {
+    from { left: -15%; }
+    to { left: 110%; }
+  }
+
+  @keyframes bombDrop {
+    0% { transform: translateY(-20vh) rotate(0); opacity: 1; }
+    90% { transform: translateY(45vh) rotate(160deg); opacity: 1; }
+    100% { transform: translateY(48vh) scale(2.5); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pearl-harbor-overlay,
+    .pearl-harbor-flash,
+    .pearl-harbor-text,
+    .pearl-harbor-plane,
+    .pearl-harbor-bomb {
+      animation: none;
+    }
+
+    .pearl-harbor-flash,
+    .pearl-harbor-plane,
+    .pearl-harbor-bomb {
+      display: none;
+    }
   }
 </style>

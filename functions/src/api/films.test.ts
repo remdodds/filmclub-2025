@@ -268,6 +268,26 @@ describe('Films API', () => {
       expect(createFilmNomination).not.toHaveBeenCalled();
     });
 
+    it('returns 409 and saves nothing when nominating Pearl Harbor', async () => {
+      // Arrange — use the real eligibility rules rather than a canned response
+      const actualLogic = jest.requireActual('../films/films.logic');
+      mockRequest.body = { title: 'Pearl Harbour (2001)' };
+      (validateFilmTitle as jest.Mock).mockReturnValue({ isValid: true });
+      mockGet
+        .mockResolvedValueOnce({ docs: [] })
+        .mockResolvedValueOnce({ docs: [] });
+      (canNominateFilm as jest.Mock).mockImplementationOnce(actualLogic.canNominateFilm);
+
+      // Act
+      await addFilm(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(409);
+      expect(mockJson).toHaveBeenCalledWith({ error: actualLogic.PEARL_HARBOR_REJECTION });
+      expect(createFilmNomination).not.toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
+    });
+
     it('creates a film nomination with the correct visitorId from request', async () => {
       const fakeDate = new Date('2024-01-01');
       (validateFilmTitle as jest.Mock).mockReturnValue({ isValid: true });

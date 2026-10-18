@@ -82,8 +82,11 @@ export function findDuplicate(title: string, existingFilms: Film[]): Film | null
   );
 }
 
+/** Error shown when someone tries to nominate Pearl Harbor. */
+export const PEARL_HARBOR_REJECTION = 'Pearl Harbor cannot be nominated. Nice try.';
+
 /**
- * Check if a film can be nominated (not already nominated or recently watched)
+ * Check if a film can be nominated (not Pearl Harbor, not already nominated or recently watched)
  * @param title - Film title
  * @param nominatedFilms - Currently nominated films
  * @param watchedFilms - Recently watched films
@@ -94,6 +97,10 @@ export function canNominateFilm(
   nominatedFilms: Film[],
   watchedFilms: Film[] = []
 ): { canNominate: boolean; reason?: string } {
+  if (isPearlHarbor(title)) {
+    return { canNominate: false, reason: PEARL_HARBOR_REJECTION };
+  }
+
   // Check if already nominated
   const alreadyNominated = findDuplicate(title, nominatedFilms);
   if (alreadyNominated) {
@@ -163,4 +170,28 @@ export function sortFilmsByDate(films: Film[]): Film[] {
     const dateB = b.watchedAt || b.addedAt;
     return dateB.getTime() - dateA.getTime();
   });
+}
+
+/** A trailing release year such as " (2001)". */
+const TRAILING_YEAR = /\s*\(\d{4}\)$/;
+
+/** Anything that isn't a lowercase letter or digit. */
+const NON_ALPHANUMERIC = /[^a-z0-9]/g;
+
+/** "pearlharbor" or the British "pearlharbour", once compacted. */
+const PEARL_HARBOR = /^pearlharbou?r$/;
+
+/**
+ * True when the title is Pearl Harbor (any case, either spelling, ignoring
+ * punctuation, whitespace and a trailing release year). Mirrors the frontend
+ * easter-egg matcher in src/lib/easterEggs.ts.
+ * @param title - Film title to check
+ */
+export function isPearlHarbor(title: string): boolean {
+  const compact = title
+    .toLowerCase()
+    .trim()
+    .replace(TRAILING_YEAR, '')
+    .replace(NON_ALPHANUMERIC, '');
+  return PEARL_HARBOR.test(compact);
 }
